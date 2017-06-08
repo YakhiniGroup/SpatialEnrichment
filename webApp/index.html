@@ -1,0 +1,118 @@
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>IDC Web Project</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.34.0/mapbox-gl.js'></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/panel.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/JSONobject.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/map.css">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.34.0/mapbox-gl.css' rel='stylesheet' />
+</head>
+    <body>
+        <!-- The Loader -->
+        <div id="loading">
+             <img src="images/load.gif" alt="Loading..." />
+        </div>
+        <!--Map-->
+        <div id='map'></div>
+        <div class="container-fluid">
+            <div class='row'>
+                <!--Main Panel-->
+                <div id='panel'>
+                    <div class="col-sm-3">
+                      <div class="dropdown dropdown-1">
+                            <button class="dropdown-toggle" type="button" data-toggle="dropdown">Select Country
+                            <span class="caret"></span></button>
+                            <ul class="dropdown-menu"></ul>
+                      </div>
+                    </div>
+                    <div class="col-sm-3">
+                      <div class="dropdown dropdown-2">
+                            <button class="dropdown-toggle" type="button" data-toggle="dropdown">Select Data Set
+                            <span class="caret"></span></button>
+                            <ul class="dropdown-menu"></ul>
+                      </div>
+                    </div>
+                    <div class="col-sm-6">
+                    <input id="selectSpotSearchBar" type="text" class="form-control" placeholder="Select Spots">
+                    <ul class="searchSpotList"></ul>
+                    </div>     
+                </div>
+                <!---->
+                <!--Data set upload-->
+                <div class="panel" id="DataSetUploadPanel">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Upload Data Set</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" type="button" data-toggle="dropdown">Select Country
+                            <span class="caret"></span></button>
+                            <ul class="dropdown-menu"></ul>
+                        </div>
+                        <p id="nameTagOfSelectedCountryInDataSetUploadPanel"><p>
+                        <input type="text" id="inputNameOfUploadedDataSet" class="form-control" placeholder="Enter name of data set">
+                        <input enctype="multipart/form-data"  type="file" id="hiddenUploadCsvFileButton" name="upload" accept=".csv">
+                        <button type="button" class="btn" id="uploadCsvFileButton">Upload file </button> 
+                         <p>- CSV Format only -</p>
+                         <a data-toggle="modal" data-target="#csvFileUploadModal"><p> Learn how </p></a>
+                    </div>
+                </div>
+                <!---->
+                <!-- Modal -->
+                <div id="csvFileUploadModal" class="modal fade" role="dialog">
+                      <div class="modal-dialog">
+                        <!-- Modal content-->
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                <h4 class="modal-title">CSV File Upload Regulations</h4>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row modalRow">
+                                    <img src="images/example.png">
+                                </div>
+                                <div class="row modalRow">
+                                    <p> 1. File must be a CSV type</p>
+                                </div>
+                                <div class="row modalRow">
+                                    <p> 2. Headers must include 5 categories in the following order:</p>
+                                </div>
+                                <div class="row modalRow">
+                                    <ul>
+                                        <li>name</il>
+                                        <li>info</il>
+                                        <li>lon</il>     
+                                        <li>lat</il> 
+                                        <li>show</il> 
+                                    </ul>       
+                                </div>
+                                <div class="row modalRow">
+                                    <p> 3. Attributes:</p>
+                                </div>
+                                <div class="row modalRow">
+                                    <ul>
+                                        <li><b>name</b> - A unique name using [a-z][A-Z][0-9] characteres</il>
+                                        <li><b>info</b> - 0 or 1</il> 
+                                        <li><b>lon</b> - Valid longitude location using [-][0-9] characteres</il>
+                                        <li><b>lat</b> - Valid latitude location using [-][0-9] characteres</il>  
+                                        <li><b>show</b> - true or false</il> 
+                                    </ul>       
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button id="calculateButton">Calculate</button>
+            </div>
+        </div>
+    </body>
+</html>
