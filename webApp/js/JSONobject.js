@@ -25,10 +25,9 @@ var JSONobject = {
 		console.log("sending JSONobject to server : \n" + JSON.stringify(JSONobject.spots));
 		panel.activateLoader();
 		$.ajax({
-			url: 'https://jwr7lv7jyb.execute-api.us-west-2.amazonaws.com/prod/MyFunction',
+			url: 'https://xfg3e9bjw7.execute-api.us-west-2.amazonaws.com/prod/data',
 			type: 'POST',
-			//contentType: 'application/json',
-			//dataType: 'application/x-www-form-urlencoded',
+			contentType: 'application/json',
 			success : function(json){
 				panel.exitLoader();
 				alert("Server response : " + JSON.stringify(json));
