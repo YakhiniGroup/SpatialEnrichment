@@ -15,7 +15,7 @@ namespace SpatialEnrichmentWrapper
         /// </summary>
         /// <param name="coordinates">tuple of (x,y,label)</param>
         /// <returns>a list of enriched 2d location centers as SpatialmHGResult</returns>
-        public IEnumerable<SpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
+        public List<SpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
         {
             var ones = coordinates.Sum(t => t.Item3 == true ? 1 : 0);
             var numcoords = coordinates.Count;
@@ -25,10 +25,7 @@ namespace SpatialEnrichmentWrapper
             var labels = coordinates.Select(t => t.Item3).ToList();
             var T = new Tesselation(coords, labels, new List<string>());
             var topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1);
-            foreach (var topResult in topResults)
-            {
-                yield return new SpatialmHGResult(topResult);
-            }
+            return topResults.Select(t => new SpatialmHGResult(t)).ToList();
         }
     }
 
