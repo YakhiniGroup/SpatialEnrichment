@@ -25,8 +25,11 @@ namespace SpatialEnrichmentWrapper
 
     }
 
+    public enum CellCountStrategy { Exact_edges, UE_IgnoreSkips }
+
     public static class StaticConfigParams
     {
+        public static bool WriteToCSV = false; //writes cell to files
         public const Actions ActionList =
             Actions.Program_RandomConstSeed |
             Actions.Instance_Uniform |
@@ -44,7 +47,7 @@ namespace SpatialEnrichmentWrapper
         public const int CONST_CONCURRENCY = 30;
         public const int CONST_SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
         public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
-        public static bool WriteToCSV = false; //writes cell to files
+        
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
         public static Random rnd;

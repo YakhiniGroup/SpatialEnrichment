@@ -42,7 +42,6 @@ namespace SpatialEnrichment
         #endregion
 
         #region Linesegments
-
         //public static ConcurrentDictionary<Tuple<int, int, int>, SegmentCellCovered> BannedSegments = new ConcurrentDictionary<Tuple<int, int, int>, SegmentCellCovered>();
         #endregion
 
@@ -660,9 +659,11 @@ namespace SpatialEnrichment
             cell.SetId(Interlocked.Increment(ref cellCount));
             if (cell.MyId % 100 == 0)
             {
-                Console.Write("\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", cellCount,
-                    cellCount / StaticConfigParams.Cellcount, cell.CenterOfMass.ToString("0.000"),
-                    cellCount / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, new TimeSpan(0, 0, (int)((StaticConfigParams.Cellcount - cellCount) / (cellCount / sw.Elapsed.TotalSeconds))));
+                var numcovered = (int) (sortLL.segmentCount / 8);
+                var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / StaticConfigParams.Cellcount
+                Console.Write("\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
+                    percentCovered, cell.CenterOfMass.ToString("0.000"),
+                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, new TimeSpan(0, 0, (int)((StaticConfigParams.Cellcount - cellCount) / (cellCount / sw.Elapsed.TotalSeconds))));
                 if (!sw.IsRunning)
                     sw.Start();
             }
@@ -752,6 +753,7 @@ namespace SpatialEnrichment
                     if (remainingSkips > 0 && !covered)
                     {
                         sortLL.CoverSegment(openSegment, coverageExtension);
+                        //if(StaticConfigParams.CellCountStrategy == )
                         Interlocked.Increment(ref cellCount);
                         if (remainingSkips > 1)
                             Interlocked.Increment(ref cellCount);

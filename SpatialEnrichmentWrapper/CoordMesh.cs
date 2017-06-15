@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Security.Claims;
 using System.Security.Policy;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpatialEnrichment
@@ -16,7 +17,8 @@ namespace SpatialEnrichment
         private Coordinate[,] LineIntersections; //maps a coordinate to its 4 (max) neighbors on the mesh
         private bool[,] CoveredIntersectionsRight, CoveredIntersectionsLeft;
         private Coordinate[] coords; //maps coordid to coord
-        private long numCoords;
+        public long numCoords;
+        public long segmentCount=0;
         // Each row captures for vertex v the following order of relations: [pos x progress & right angle,pos x progress & left angle,neg x progress & right angle,neg x progress & left angle]
         // aka [+R,+L,-R,-L]
         private int Nlines;
@@ -263,6 +265,7 @@ namespace SpatialEnrichment
 
         public void CoverCoordPair(Coordinate from, Coordinate to, Tesselation.SegmentCellCovered direction)
         {
+            Interlocked.Increment(ref segmentCount);
             var fromid = GetCoordNeighborId(from.CoordId.Value, to.CoordId.Value);
             var toid = GetCoordNeighborId(to.CoordId.Value, from.CoordId.Value);
             if ((direction & Tesselation.SegmentCellCovered.Right) != 0)

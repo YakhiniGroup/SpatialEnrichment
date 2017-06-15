@@ -1,0 +1,134 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SpatialEnrichmentWrapper
+{
+    public class Coordinate3D : IEquatable<Coordinate3D>
+    {
+        public readonly double X, Y, Z;
+        public int? CoordId;
+        public Coordinate3D(double x, double y, double z)
+        {
+            if (double.IsNaN(x) || double.IsInfinity(x)
+             || double.IsNaN(y) || double.IsInfinity(y)
+             || double.IsNaN(z) || double.IsInfinity(z))
+                throw new ApplicationException("Bad coordinate values");
+            X = x;
+            Y = y;
+            Z = z;
+        }
+        public bool Equals(Coordinate3D other)
+        {
+            return (Math.Abs(this.X - other.X) < StaticConfigParams.TOLERANCE) && 
+                   (Math.Abs(this.Y - other.Y) < StaticConfigParams.TOLERANCE) &&
+                   (Math.Abs(this.Z - other.Z) < StaticConfigParams.TOLERANCE);
+        }
+
+        public override int GetHashCode()
+        {
+            return Convert.ToInt32(31 * X + 17 * Y + 9 * Z);
+        }
+
+        public override string ToString()
+        {
+            return ToString(@"0.00000000");
+        }
+
+        public string ToString(string fmt)
+        {
+            return X.ToString(fmt) + "," + Y.ToString(fmt) + "," + Z.ToString(fmt);
+        }
+
+        public static Coordinate3D operator +(Coordinate3D curr, Coordinate3D other)
+        {
+            return new Coordinate3D(curr.X + other.X, curr.Y + other.Y, curr.Z + other.Z);
+        }
+
+        public static Coordinate3D operator -(Coordinate3D curr, Coordinate3D other)
+        {
+            return new Coordinate3D(curr.X - other.X, curr.Y - other.Y, curr.Z - other.Z);
+        }
+
+        public static bool IsPositiveLexicographicProgress(Coordinate3D from, Coordinate3D to)
+        {
+            if (from.X < to.X)
+                return true;
+            if (from.X > to.X)
+                return false;
+            if (from.Y < to.Y)
+                return true;
+            if (from.Y > to.Y)
+                return false;
+            if (from.Z < to.Z)
+                return true;
+            return false;
+        }
+
+        public double[] ToArray()
+        {
+            return new[] { X, Y, Z };
+        }
+
+        public double Angle(Coordinate3D other)
+        {
+            throw new NotImplementedException();
+            return Math.Atan2(other.Y, other.X) - Math.Atan2(this.Y, this.X);
+        }
+
+        public double DotProduct(Coordinate3D other)
+        {
+            return (this.X * other.X + this.Y * other.Y + this.Z * other.Z);
+        }
+
+        public double CrossProduct(Coordinate3D other)
+        {
+            throw new NotImplementedException();
+            return (this.X * other.Y - this.Y * other.X);
+        }
+
+        public double EuclideanDistance(Coordinate3D other)
+        {
+            return Math.Sqrt(Math.Pow(this.X - other.X, 2) + 
+                             Math.Pow(this.Y - other.Y, 2) +
+                             Math.Pow(this.Z - other.Z, 2));
+        }
+
+        public static Coordinate3D MakeRandom()
+        {
+            return new Coordinate3D(StaticConfigParams.rnd.NextDouble(), 
+                                    StaticConfigParams.rnd.NextDouble(),
+                                    StaticConfigParams.rnd.NextDouble());
+        }
+    }
+
+
+    public class Plane
+    {
+        public int PointAId = -1, PointBId = -1;
+        public readonly int Id;
+        public double A, B, C, D; //plane given as aX+bY+cZ+d=0
+
+        public Plane(double a, double b, double c, double d)
+        {
+            A = a;
+            B = b;
+            C = c;
+        }
+
+        public static Plane Bisector(Coordinate3D a, Coordinate3D b)
+        {   
+            var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
+            var normalVec = new Coordinate3D(a.X - b.X, a.Y + b.Y, a.Z + b.Z);
+            throw new NotImplementedException("Plane bisector");
+            return new Plane(midPoints.X * normalVec.X, 
+                midPoints.Y * normalVec.Y, 
+                midPoints.Z * normalVec.Z, 0);
+
+        }
+
+    }
+
+}

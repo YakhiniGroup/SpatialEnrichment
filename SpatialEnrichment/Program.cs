@@ -19,23 +19,27 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 50;
+            var numcoords = 300;
             if(StaticConfigParams.CONST_SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", StaticConfigParams.CONST_SKIP_SLACK);
+            if (StaticConfigParams.WriteToCSV)
+                Console.WriteLine(@"Warning! Current configuration writes cells to CSV - this is SLOW.");
+
             #region init
             StaticConfigParams.rnd = (StaticConfigParams.ActionList & Actions.Program_RandomConstSeed) != 0 ? new Random(1) : new Random();
             StaticConfigParams.timer.Start();
             #endregion
 
             var di = new DirectoryInfo(@"Cells");
+            if (!di.Exists)
+                di.Create();
+            if(StaticConfigParams.WriteToCSV)
             foreach (FileInfo file in di.GetFiles())
             {
                 file.Delete(); 
             }
             //Load coordinates and labels
             var identities = new List<string>();
-            //rnd = new Random();
-            //Debugging.debug_mHG();
 
             for (var i = 0; i < 1; i++)
             {

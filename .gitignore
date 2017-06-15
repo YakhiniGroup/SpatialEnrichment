@@ -1,0 +1,11 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/SpatialEnrichment/bin/Debug/lines_0.csv
+/SpatialEnrichment/bin/Debug/coords_0.csv
+/SpatialEnrichment/bin/Debug/coordSample_0.csv
+/SpatialEnrichment/obj/Debug
+/SpatialEnrichmentWrapper/bin/Debug
+/SpatialEnrichmentWrapper/obj/Debug
+/SpatialEnrichment/bin/Debug

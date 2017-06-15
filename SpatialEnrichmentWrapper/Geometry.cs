@@ -257,12 +257,15 @@ namespace SpatialEnrichment
                 LineIdsMap[i] = new int[pointsCount];
         }
     }
+
+
     public enum CoordTypes
             {
                 Both,
                 First,
                 Second
             };
+
     public class LineSegment : IDisposable
     {
         public Line Source, FirstIntersection, SecondIntersection;
@@ -756,31 +759,7 @@ namespace SpatialEnrichment
         
     }
 
-    /*
-    public class LineSegmentComparer : IEqualityComparer<LineSegment>
-    {
-        private static int _linecountscaler = 0;
-
-        public LineSegmentComparer()
-        {
-            _linecountscaler = (int) Math.Ceiling(Math.Log10(Tesselation.LineIntersectionStruct.Length));
-        }
-        public bool Equals(LineSegment x, LineSegment y)
-        {
-            return x.Equals(y);
-        }
-
-        public int GetHashCode(LineSegment ls)
-        {
-            return ls.Source.Id * _linecountscaler * 100 + ls.CanonicalFirst.Id * _linecountscaler * 10 + ls.CanonicalSecond.Id;
-        }
-        public static void Reset()
-        {
-            _linecountscaler = 0;
-        }
-    }
-    */
-
+    
     public static class GeometryHelpers
     {
         public static double Sigma = 1; //Gaussian needs to decay (exponentially) in the relevant range between points.

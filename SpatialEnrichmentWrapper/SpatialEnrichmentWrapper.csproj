@@ -47,6 +47,7 @@
     <Compile Include="CoordMesh.cs" />
     <Compile Include="EnrichmentWrapper.cs" />
     <Compile Include="Geometry.cs" />
+    <Compile Include="Geometry3D.cs" />
     <Compile Include="Helpers\BinaryHeap.cs" />
     <Compile Include="Helpers\ConcurrentIndexing.cs" />
     <Compile Include="Helpers\ConcurrentPriorityQueue.cs" />
