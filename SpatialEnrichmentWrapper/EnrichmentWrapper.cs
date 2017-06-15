@@ -34,10 +34,13 @@ namespace SpatialEnrichmentWrapper
     /// </summary>
     public class SpatialmHGResult
     {
-        private double X, Y; //the center of the enrichment "sphere"
-        private int mHGthreshold; //the number of original labeled points within the enrichment "sphere"
-        private double pvalue; //the enrichment score
-        private List<Tuple<double, double>> enrichmentPolygon; //the actual bounding polygon vertices (i.e. structure of enrichment "sphere")
+        //the center of the enrichment "sphere"
+        public double X { get; private set; }
+        public double Y { get; private set; } 
+
+        public int mHGthreshold { get; private set; } //the number of original labeled points within the enrichment "sphere"
+        public double pvalue { get; private set; } //the enrichment score
+        public List<Tuple<double, double>> enrichmentPolygon { get; private set; } //the actual bounding polygon vertices (i.e. structure of enrichment "sphere")
 
         public SpatialmHGResult(Cell c)
         {
