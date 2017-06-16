@@ -11,13 +11,18 @@ namespace SpatialEnrichment.Helpers
     {
         public static void SaveToCSV(IEnumerable<double[]> coords, string outfile, bool wait = false)
         {
+            SaveToCSV(coords.Select(t => string.Join(",", t.Select(c => c.ToString("R")))), outfile, wait);
+        }
+
+        public static void SaveToCSV(IEnumerable<string> coords, string outfile, bool wait = false)
+        {
             if (wait)
             {
                 using (var fs = new FileStream(outfile, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (var file = new StreamWriter(fs))
                     foreach (var coord in coords)
                     {
-                        file.WriteLine(string.Join(",", coord.Select(v => v.ToString("R"))));
+                        file.WriteLine(coord);
                     }
             }
             else
@@ -27,7 +32,7 @@ namespace SpatialEnrichment.Helpers
                     using (var file = new StreamWriter(fs))
                         foreach (var coord in coords)
                         {
-                            file.WriteLine(string.Join(",", coord.Select(v => v.ToString("R"))));
+                            file.WriteLine(coord);
                         }
                 });
         }
