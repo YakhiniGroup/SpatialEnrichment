@@ -12,7 +12,7 @@ using SpatialEnrichmentWrapper;
 
 namespace SpatialEnrichment
 {
-    public class Coordinate : IEquatable<Coordinate>
+    public class Coordinate : IEquatable<Coordinate>, ICoordinate
     {
         public readonly double X, Y;
         public int? CoordId;
@@ -22,6 +22,19 @@ namespace SpatialEnrichment
                 throw new ApplicationException("Bad coordinate values");
             X = x;
             Y = y;
+        }
+
+        public double GetDimension(int dim)
+        {
+            switch (dim)
+            {
+                case 0:
+                    return X;
+                case 1:
+                    return Y;
+                default:
+                    throw new NotImplementedException("Two dimensional data does not implement get dim >1!");
+            }
         }
 
         public bool Equals(Coordinate other)
@@ -86,12 +99,13 @@ namespace SpatialEnrichment
             return (this.X*other.Y - this.Y*other.X);
         }
 
-        public double EuclideanDistance(Coordinate other)
+        public double EuclideanDistance(ICoordinate other)
         {
-            return Math.Sqrt(Math.Pow(this.X - other.X, 2) + Math.Pow(this.Y - other.Y, 2));
+            return Math.Sqrt(Math.Pow(this.X - ((Coordinate)other).X, 2) + 
+                Math.Pow(this.Y - ((Coordinate)other).Y, 2));
         }
 
-        public static Coordinate MakeRandom()
+        public static ICoordinate MakeRandom()
         {
             return new Coordinate(StaticConfigParams.rnd.NextDouble(),StaticConfigParams.rnd.NextDouble());
         }

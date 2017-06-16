@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SpatialEnrichment;
 using SpatialEnrichment.Helpers;
 
 namespace SpatialEnrichmentWrapper
@@ -47,7 +48,7 @@ namespace SpatialEnrichmentWrapper
         public const int CONST_CONCURRENCY = 30;
         public const int CONST_SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
         public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
-        
+        public static Type RandomInstanceType = typeof(Coordinate);
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
         public static Random rnd;

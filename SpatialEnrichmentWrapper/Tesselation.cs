@@ -67,7 +67,7 @@ namespace SpatialEnrichment
             labels = labels ?? Enumerable.Repeat(true, points.Count).ToList();
             PointLabels = labels.ToArray();
             Identities = idendities.Any() ? idendities : null;
-            convxTsk = ComputeConvexHull(Points);
+            //convxTsk = ComputeConvexHull(Points);
 
             Line.InitNumPoints(points.Count);
             Lines = new List<Line>();
@@ -538,7 +538,7 @@ namespace SpatialEnrichment
             var cmesh = new CoordMesh(Lines);
             while (cellPQ.Count < numStartCoords) //cellPQ is a minHeap priotity queue (smaller key is better)
             {
-                var coord = Coordinate.MakeRandom();
+                var coord = (Coordinate)Coordinate.MakeRandom();
                 if (!IsCoordInHull(coord)) continue;
                 //var strtCell=ComputeCellFromCoordinate(coord, sortLL, 10);
                 var strtCell = ComputeCellFromCoordinate(coord, cmesh, 10);
@@ -827,7 +827,7 @@ namespace SpatialEnrichment
                 var negdensity = 0.0;
                 do
                 {   //generate a random coordinate
-                    rndCoord = Coordinate.MakeRandom(); 
+                    rndCoord = (Coordinate)Coordinate.MakeRandom(); 
                     //Measure its probability density
                     posdensity = pointData.AsParallel().Where(t=>t.Label).Sum(coordinate=>GeometryHelpers.ComputeGaussianDensity(rndCoord, coordinate.Point)) / posNormalizer;
                     negdensity = pointData.AsParallel().Where(t=>!t.Label).Sum(coordinate=>GeometryHelpers.ComputeGaussianDensity(rndCoord, coordinate.Point)) / negNormalizer;

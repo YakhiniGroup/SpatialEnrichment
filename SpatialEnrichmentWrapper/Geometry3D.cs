@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SpatialEnrichmentWrapper
 {
-    public class Coordinate3D : IEquatable<Coordinate3D>
+    public class Coordinate3D : IEquatable<Coordinate3D>, ICoordinate
     {
         public readonly double X, Y, Z;
         public int? CoordId;
@@ -20,6 +20,22 @@ namespace SpatialEnrichmentWrapper
             Y = y;
             Z = z;
         }
+
+        public double GetDimension(int dim)
+        {
+            switch (dim)
+            {
+                case 0:
+                    return X;
+                case 1:
+                    return Y;
+                case 2:
+                    return Y;
+                default:
+                    throw new NotImplementedException("Three dimensional data does not implement get dim >2!");
+            }
+        }
+
         public bool Equals(Coordinate3D other)
         {
             return (Math.Abs(this.X - other.X) < StaticConfigParams.TOLERANCE) && 
@@ -89,14 +105,14 @@ namespace SpatialEnrichmentWrapper
             return (this.X * other.Y - this.Y * other.X);
         }
 
-        public double EuclideanDistance(Coordinate3D other)
+        public double EuclideanDistance(ICoordinate other)
         {
-            return Math.Sqrt(Math.Pow(this.X - other.X, 2) + 
-                             Math.Pow(this.Y - other.Y, 2) +
-                             Math.Pow(this.Z - other.Z, 2));
+            return Math.Sqrt(Math.Pow(this.X - ((Coordinate3D)other).X, 2) + 
+                             Math.Pow(this.Y - ((Coordinate3D)other).Y, 2) +
+                             Math.Pow(this.Z - ((Coordinate3D)other).Z, 2));
         }
 
-        public static Coordinate3D MakeRandom()
+        public static ICoordinate MakeRandom()
         {
             return new Coordinate3D(StaticConfigParams.rnd.NextDouble(), 
                                     StaticConfigParams.rnd.NextDouble(),
@@ -109,7 +125,7 @@ namespace SpatialEnrichmentWrapper
     {
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
-        public double A, B, C, D; //plane given as aX+bY+cZ+d=0
+        public double A, B, C, D; //plane given as aX+bY+cZ=d
 
         public Plane(double a, double b, double c, double d)
         {
@@ -119,13 +135,13 @@ namespace SpatialEnrichmentWrapper
         }
 
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
-        {   
+        {
+            var normalVec = a - b;
             var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
-            var normalVec = new Coordinate3D(a.X - b.X, a.Y + b.Y, a.Z + b.Z);
-            throw new NotImplementedException("Plane bisector");
-            return new Plane(midPoints.X * normalVec.X, 
-                midPoints.Y * normalVec.Y, 
-                midPoints.Z * normalVec.Z, 0);
+            var d = normalVec.DotProduct(midPoints);
+            return new Plane(normalVec.X * midPoints.X, 
+                normalVec.Y * midPoints.Y, 
+                normalVec.Z * midPoints.Z, d);
 
         }
 

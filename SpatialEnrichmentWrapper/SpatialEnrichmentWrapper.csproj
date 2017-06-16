@@ -30,10 +30,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Interop.MLApp">
-      <HintPath>..\SpatialEnrichment\obj\Debug\Interop.MLApp.dll</HintPath>
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -53,9 +49,9 @@
     <Compile Include="Helpers\ConcurrentPriorityQueue.cs" />
     <Compile Include="Helpers\CoordNeighborArray.cs" />
     <Compile Include="Helpers\Generics.cs" />
-    <Compile Include="Helpers\MatlabHandler.cs" />
     <Compile Include="Helpers\mHGJumper.cs" />
     <Compile Include="Helpers\ParseDatasets.cs" />
+    <Compile Include="ICoordinate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SortedIntersectionList.cs" />
     <Compile Include="StaticConfigParams.cs" />

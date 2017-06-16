@@ -43,7 +43,7 @@ namespace SpatialEnrichment
 
             for (var i = 0; i < 1; i++)
             {
-                var coordinates = new List<Coordinate>();
+                var coordinates = new List<ICoordinate>();
                 var labels = new List<bool>();
                 StaticConfigParams.filenamesuffix = i.ToString();
                 Console.WriteLine("File {0}",i);
@@ -65,9 +65,19 @@ namespace SpatialEnrichment
                 mHGJumper.Initialize(ones, numcoords - ones);
                 mHGJumper.optHGT = StaticConfigParams.CONST_SIGNIFICANCE_THRESHOLD;// / Cellcount; //for bonferonni
                 //alpha is the Bonferonni (union-bound) corrected significance level
-                Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
+                
                 //Debugging.debug_mHG(numcoords,ones);
-                var T = new Tesselation(coordinates, labels, identities);
+                Tesselation T = null;
+                var coordType = coordinates.First().GetType();
+                if (coordType == typeof(Coordinate3D))
+                {
+                    Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
+                }
+                if (coordType == typeof(Coordinate))
+                {
+                    Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
+                    T = new Tesselation(coordinates.Select(c => (Coordinate) c).ToList(), labels, identities);
+                }
                 if ((StaticConfigParams.ActionList & Actions.Search_CoordinateSample) != 0)
                 {
                     T.GradientSkippingSweep(
@@ -86,10 +96,10 @@ namespace SpatialEnrichment
                 }
                 if ((StaticConfigParams.ActionList & Actions.Search_FixedSet) != 0)
                 {
-                    var avgX = coordinates.Select(c => c.X).Average();
-                    var avgY = coordinates.Select(c => c.Y).Average();
+                    var avgX = coordinates.Select(c => c.GetDimension(0)).Average();
+                    var avgY = coordinates.Select(c => c.GetDimension(1)).Average();
                     var cord = new Coordinate(avgX, avgY);
-                    mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<Coordinate>() { cord });
+                    mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<ICoordinate>() { cord });
                 }
                 if ((StaticConfigParams.ActionList & Actions.Search_LineSweep) != 0)
                 {
@@ -106,7 +116,7 @@ namespace SpatialEnrichment
             }
         }
 
-        private static void mHGOnOriginalPoints(string[] args, List<Coordinate> coordinates, List<bool> labels, int numcoords, List<Coordinate> pivots = null)
+        private static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
         {
             Console.WriteLine(@"Covering original points with mHG.");
             int ptcount = 0;
@@ -134,21 +144,31 @@ namespace SpatialEnrichment
             wrtr.Wait();
         }
 
-        private static void RandomizeCoordinatesAndSave(int numcoords, List<Coordinate> coordinates, Random rnd, List<bool> labels)
+        private static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels)
         {
             if ((StaticConfigParams.ActionList & Actions.Instance_Uniform) != 0)
             {
                 for (var i = 0; i < numcoords; i++)
                 {
-                    coordinates.Add(new Coordinate(rnd.NextDouble(), rnd.NextDouble()));
+                    if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                        coordinates.Add(Coordinate.MakeRandom());
+                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                        coordinates.Add(Coordinate3D.MakeRandom());
                     labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
                 }        
             }
             if ((StaticConfigParams.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
             {
                 for (var i = 0; i < numcoords; i++)
-                    coordinates.Add(new Coordinate(rnd.NextDouble(), rnd.NextDouble()));
-                var pivotCoord = new Coordinate(rnd.NextDouble(), rnd.NextDouble());
+                    if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                        coordinates.Add(Coordinate.MakeRandom());
+                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                        coordinates.Add(Coordinate3D.MakeRandom());
+                ICoordinate pivotCoord;
+                if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                    pivotCoord = Coordinate.MakeRandom();
+                else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
+                    pivotCoord = Coordinate3D.MakeRandom();
                 var posIds =
                     new HashSet<int>(
                         coordinates.Select((t, idx) => new {Idx = idx, Dist = t.EuclideanDistance(pivotCoord)})
@@ -158,7 +178,8 @@ namespace SpatialEnrichment
                 for (var i = 0; i < numcoords; i++)
                     labels.Add(posIds.Contains(i));
             }
-            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => new[] {a.X, a.Y, Convert.ToDouble(b)}).ToList(), string.Format(@"coords_{0}.csv", StaticConfigParams.filenamesuffix));
+            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
+                $@"coords_{StaticConfigParams.filenamesuffix}.csv");
         }
 
         private static void PlantEnrichmentAndSave(int numcoords, List<Coordinate> coordinates, Random rnd, List<bool> labels)
@@ -172,7 +193,7 @@ namespace SpatialEnrichment
             Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => new[] { a.X, a.Y, Convert.ToDouble(b) }).ToList(), @"coords.csv");
         }
 
-        private static void LoadCoordinatesFromFile(string[] args, ref int numcoords, List<Coordinate> coordinates,
+        private static void LoadCoordinatesFromFile(string[] args, ref int numcoords, List<ICoordinate> coordinates,
             List<bool> labels, List<string> identities, Random rnd)
         {
             var lines = File.ReadLines(args[0]).Select(l => l.Split(','));
@@ -180,11 +201,20 @@ namespace SpatialEnrichment
             foreach (var line in lines)
             {
                 numcoords ++;
-                if (line.Length == 4) //has identities
+                if (line.Length == 4) 
                 {
-                    identities.Add(line[0]);
-                    coordinates.Add(new Coordinate(Convert.ToDouble(line[1]), Convert.ToDouble(line[2])));
-                    labels.Add((line[3] == "1" || line[3].ToLowerInvariant() == "true"));
+                    double v;
+                    if (line.Take(3).All(l => double.TryParse(l, out v))) //has 3d coords
+                    {
+                        coordinates.Add(new Coordinate3D(Convert.ToDouble(line[0]), Convert.ToDouble(line[1]), Convert.ToDouble(line[2])));
+                        labels.Add((line[3] == "1" || line[3].ToLowerInvariant() == "true"));
+                    }
+                    else //has identities
+                    {
+                        identities.Add(line[0]);
+                        coordinates.Add(new Coordinate(Convert.ToDouble(line[1]), Convert.ToDouble(line[2])));
+                        labels.Add((line[3] == "1" || line[3].ToLowerInvariant() == "true"));
+                    }
                 }
                 else if (line.Length == 3)
                 {
