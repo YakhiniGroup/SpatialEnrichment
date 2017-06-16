@@ -67,7 +67,7 @@ namespace SpatialEnrichment
             labels = labels ?? Enumerable.Repeat(true, points.Count).ToList();
             PointLabels = labels.ToArray();
             Identities = idendities.Any() ? idendities : null;
-            //convxTsk = ComputeConvexHull(Points);
+            convxTsk = ComputeConvexHull(Points);
 
             Line.InitNumPoints(points.Count);
             Lines = new List<Line>();
