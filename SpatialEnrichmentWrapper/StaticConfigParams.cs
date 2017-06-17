@@ -51,7 +51,7 @@ namespace SpatialEnrichmentWrapper
         public static Type RandomInstanceType = typeof(Coordinate);
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
-        public static Random rnd;
+        public static Random rnd = new Random();
         public static double Cellcount;
     }
 }
