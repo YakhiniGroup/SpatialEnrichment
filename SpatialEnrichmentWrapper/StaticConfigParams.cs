@@ -48,7 +48,7 @@ namespace SpatialEnrichmentWrapper
         public const int CONST_CONCURRENCY = 30;
         public const int CONST_SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
         public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
-        public static Type RandomInstanceType = typeof(Coordinate);
+        public static Type RandomInstanceType = typeof(Coordinate3D);
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
         public static Random rnd = new Random();

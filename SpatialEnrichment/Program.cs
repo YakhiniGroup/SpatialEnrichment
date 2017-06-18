@@ -41,12 +41,12 @@ namespace SpatialEnrichment
             //Load coordinates and labels
             var identities = new List<string>();
 
-            for (var i = 0; i < 1; i++)
+            for (var instanceIter = 0; instanceIter < 1; instanceIter++)
             {
                 var coordinates = new List<ICoordinate>();
                 var labels = new List<bool>();
-                StaticConfigParams.filenamesuffix = i.ToString();
-                Console.WriteLine("File {0}",i);
+                StaticConfigParams.filenamesuffix = instanceIter.ToString();
+                Console.WriteLine("File {0}",instanceIter);
                 if (args.Length>0) 
                     if(File.Exists(args[0]))
                         LoadCoordinatesFromFile(args, ref numcoords, coordinates, labels, identities, StaticConfigParams.rnd);
@@ -72,6 +72,23 @@ namespace SpatialEnrichment
                 if (coordType == typeof(Coordinate3D))
                 {
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
+                    for(var i=0; i<coordinates.Count;i++)
+                        for(var j=0; j<coordinates.Count;j++)
+                            if (labels[i] != labels[j])
+                            {
+                                var plane = Plane.Bisector((Coordinate3D)coordinates[i], (Coordinate3D)coordinates[j]);
+                                foreach (var coord in coordinates)
+                                {
+                                    Coordinate projected = plane.ProjectOnto((Coordinate3D)coord);
+
+                                }
+                            }
+                    foreach (var coordpair in coordinates.Zip(coordinates.Skip(1), (a, b) => new {First = a, Second = b}))
+                    {
+                        
+                        
+
+                    }
                 }
                 if (coordType == typeof(Coordinate))
                 {
@@ -152,7 +169,7 @@ namespace SpatialEnrichment
                 {
                     if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
                         coordinates.Add(Coordinate.MakeRandom());
-                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
                         coordinates.Add(Coordinate3D.MakeRandom());
                     labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
                 }        

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SpatialEnrichment;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -125,13 +126,13 @@ namespace SpatialEnrichmentWrapper
     {
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
-        public double A, B, C, D; //plane given as aX+bY+cZ=d
+        public Coordinate3D Normal;
+        public double D; //plane given as aX+bY+cZ=d where a,b,c is the Normal
 
         public Plane(double a, double b, double c, double d)
         {
-            A = a;
-            B = b;
-            C = c;
+            Normal = new Coordinate3D(a,b,c);
+            D = d;
         }
 
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
@@ -145,6 +146,12 @@ namespace SpatialEnrichmentWrapper
 
         }
 
+        public Coordinate ProjectOnto(Coordinate3D coord)
+        {
+            var diff = coord - new Coordinate3D(coord.X * Normal.X, coord.Y * Normal.Y, coord.Z * Normal.Z);
+            
+            return new Coordinate(diff.X, diff.X);
+        }
     }
 
 }

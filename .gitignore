@@ -11,3 +11,5 @@
 /SpatialEnrichment/bin/Debug
 /UsageExampleProject/bin/Debug
 /UsageExampleProject/obj/Debug
+SpatialEnrichment/obj/
+UsageExampleProject/obj/
