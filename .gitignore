@@ -14,3 +14,4 @@
 SpatialEnrichment/obj/
 UsageExampleProject/obj/
 packages/
+.vs/slnx.sqlite
