@@ -72,57 +72,52 @@ namespace SpatialEnrichment
                 if (coordType == typeof(Coordinate3D))
                 {
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
+                    
                     for(var i=0; i<coordinates.Count;i++)
                         for(var j=0; j<coordinates.Count;j++)
                             if (labels[i] != labels[j])
                             {
                                 var plane = Plane.Bisector((Coordinate3D)coordinates[i], (Coordinate3D)coordinates[j]);
-                                foreach (var coord in coordinates)
-                                {
-                                    Coordinate projected = plane.ProjectOnto((Coordinate3D)coord);
-
-                                }
+                                var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates.Cast<Coordinate3D>().ToList());
+                                //Solve 2D problem
+                                
+                                //Combine 2D solutions
                             }
-                    foreach (var coordpair in coordinates.Zip(coordinates.Skip(1), (a, b) => new {First = a, Second = b}))
-                    {
-                        
-                        
-
-                    }
                 }
-                if (coordType == typeof(Coordinate))
+                else if (coordType == typeof(Coordinate))
                 {
                     Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
                     T = new Tesselation(coordinates.Select(c => (Coordinate) c).ToList(), labels, identities);
+                
+                    if ((StaticConfigParams.ActionList & Actions.Search_CoordinateSample) != 0)
+                    {
+                        T.GradientSkippingSweep(
+                        numStartCoords: 20,
+                        numThreads: Environment.ProcessorCount - 1);
+                        //numStartCoords: 1,
+                        //numThreads: 1);
+                    }
+                    if ((StaticConfigParams.ActionList & Actions.Search_Exhaustive) != 0)
+                    {
+                        T.GenerateFromCoordinates();
+                    }
+                    if ((StaticConfigParams.ActionList & Actions.Search_Originals) != 0)
+                    {
+                        mHGOnOriginalPoints(args, coordinates, labels, numcoords);
+                    }
+                    if ((StaticConfigParams.ActionList & Actions.Search_FixedSet) != 0)
+                    {
+                        var avgX = coordinates.Select(c => c.GetDimension(0)).Average();
+                        var avgY = coordinates.Select(c => c.GetDimension(1)).Average();
+                        var cord = new Coordinate(avgX, avgY);
+                        mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<ICoordinate>() { cord });
+                    }
+                    if ((StaticConfigParams.ActionList & Actions.Search_LineSweep) != 0)
+                    {
+                        T.LineSweep();
+                    }
+                    Tesselation.Reset();
                 }
-                if ((StaticConfigParams.ActionList & Actions.Search_CoordinateSample) != 0)
-                {
-                    T.GradientSkippingSweep(
-                    numStartCoords: 20,
-                    numThreads: Environment.ProcessorCount - 1);
-                    //numStartCoords: 1,
-                    //numThreads: 1);
-                }
-                if ((StaticConfigParams.ActionList & Actions.Search_Exhaustive) != 0)
-                {
-                    T.GenerateFromCoordinates();
-                }
-                if ((StaticConfigParams.ActionList & Actions.Search_Originals) != 0)
-                {
-                    mHGOnOriginalPoints(args, coordinates, labels, numcoords);
-                }
-                if ((StaticConfigParams.ActionList & Actions.Search_FixedSet) != 0)
-                {
-                    var avgX = coordinates.Select(c => c.GetDimension(0)).Average();
-                    var avgY = coordinates.Select(c => c.GetDimension(1)).Average();
-                    var cord = new Coordinate(avgX, avgY);
-                    mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<ICoordinate>() { cord });
-                }
-                if ((StaticConfigParams.ActionList & Actions.Search_LineSweep) != 0)
-                {
-                    T.LineSweep();
-                }
-                Tesselation.Reset();
             }
             
             //Finalize

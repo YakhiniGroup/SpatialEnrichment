@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SpatialEnrichment;
+using Accord.Statistics.Analysis;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -146,11 +147,26 @@ namespace SpatialEnrichmentWrapper
 
         }
 
-        public Coordinate ProjectOnto(Coordinate3D coord)
+        public Coordinate3D ProjectOnto(Coordinate3D coord)
         {
             var diff = coord - new Coordinate3D(coord.X * Normal.X, coord.Y * Normal.Y, coord.Z * Normal.Z);
             
-            return new Coordinate(diff.X, diff.X);
+            return new Coordinate3D(diff.X, diff.Y, diff.Z);
+        }
+
+        public List<Coordinate> ProjectOntoAndRotate(List<Coordinate3D> coords)
+        {
+            //Project all coordinates to plane
+            var projList = coords.Select(c => ProjectOnto(c)).ToList();
+            //Take the colinear points on the plane and compute their PCA
+            var sourceMatrix = projList.Select(t => new[] { t.X, t.Y, t.Z }).ToArray();
+            var pca = new PrincipalComponentAnalysis() { Method = PrincipalComponentMethod.Center, Whiten = false };
+            var transform = pca.Learn(sourceMatrix);
+
+            //Use pca for aligning plane to a 2D frame of reference.
+            pca.NumberOfOutputs = 2; //project to 2D
+            var transformedData = pca.Transform(sourceMatrix);
+            return transformedData.Select(p => new Coordinate(p[0], p[1])).ToList();
         }
     }
 
