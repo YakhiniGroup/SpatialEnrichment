@@ -19,13 +19,11 @@ function spot(name, lon, lat, info, show){
 	this.show = show;
 }
 
-function returnSpots(name, lon, lat, info, prob, radius){
-	this.name = name;
+function SpatialmHGResult(lon, lat, mHGthreshold, pValue){
 	this.lon = lon;
 	this.lat = lat;
-	this.info = info;
-	this.prob = prob;
-	this.radius = radius;
+	this.mHGthreshold = mHGthreshold;
+	this.pValue = pValue;
 }
 
 function spotSet(name, spots, show){

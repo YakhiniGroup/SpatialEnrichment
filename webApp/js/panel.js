@@ -88,8 +88,8 @@ var panel = {
 				list[i].style.display = "none";
 		}
 	},
-	createAndDisplaySpotTag: function(id, topPosition, leftPosition){
-		var spotObject = maps.returnSpotObject(id);
+	createAndDisplaySpotTag: function(spot, topPosition, leftPosition){
+		var spotObject = spot;
 		var spotTagElement = document.createElement("div");
 		spotTagElement.className = 'spotTag';
 		spotTagElement.style.top = topPosition+"px";

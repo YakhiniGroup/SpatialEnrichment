@@ -40,6 +40,16 @@ var parser = {
 		if(callback && dataSetName && countryObject){
 			callback(result, dataSetName, countryObject, isNew);
 		}  
+	},
+	JSONToSpatialmHGResultArray : function(jsonOfSpatialmHGResults){
+		var spatialmHGResultArray = [];
+		var spots = jsonOfSpatialmHGResults["Spots"];
+		for (var i = 0; i < spots.length; i++){
+			var test = new SpatialmHGResult(spots[i]["Lon"], spots[i]["Lat"], spots[i]["Name"], spots[i]["Info"],);
+			spatialmHGResultArray.push(test);
+		}
+
+		return spatialmHGResultArray;
 	}
 }
 

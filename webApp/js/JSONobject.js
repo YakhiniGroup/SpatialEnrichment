@@ -30,8 +30,9 @@ var JSONobject = {
 			contentType: 'application/json',
 			success : function(json){
 				panel.exitLoader();
-				alert("Server response : " + JSON.stringify(json));
 				console.log(JSON.stringify(json));
+				var SpatialmHGResultArray = parser.JSONToSpatialmHGResultArray(json);
+				maps.addSpatialmHGResultSpotsToMap(SpatialmHGResultArray);
 			},
 			error : function(err){
 				panel.exitLoader();
