@@ -19,7 +19,7 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 30;
+            var numcoords = 20;
             if(StaticConfigParams.CONST_SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", StaticConfigParams.CONST_SKIP_SLACK);
             if (StaticConfigParams.WriteToCSV)
@@ -30,14 +30,17 @@ namespace SpatialEnrichment
             StaticConfigParams.timer.Start();
             #endregion
 
-            var di = new DirectoryInfo(@"Cells");
-            if (!di.Exists)
-                di.Create();
-            if(StaticConfigParams.WriteToCSV)
-            foreach (FileInfo file in di.GetFiles())
-            {
-                file.Delete(); 
-            }
+            if (StaticConfigParams.WriteToCSV)
+                foreach (var dir in new List<string>() { "Cells", "Planes" })
+                {
+                    var di = new DirectoryInfo(dir);
+                    if (!di.Exists)
+                        di.Create();
+                    foreach (FileInfo file in di.GetFiles())
+                    {
+                        file.Delete();
+                    }
+                }
             //Load coordinates and labels
             var identities = new List<string>();
 
@@ -71,18 +74,11 @@ namespace SpatialEnrichment
                 var coordType = coordinates.First().GetType();
                 if (coordType == typeof(Coordinate3D))
                 {
+                    var ew = new EnrichmentWrapper();
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
-                    
-                    for(var i=0; i<coordinates.Count;i++)
-                        for(var j=0; j<coordinates.Count;j++)
-                            if (labels[i] != labels[j])
-                            {
-                                var plane = Plane.Bisector((Coordinate3D)coordinates[i], (Coordinate3D)coordinates[j]);
-                                var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates.Cast<Coordinate3D>().ToList());
-                                //Solve 2D problem
-                                
-                                //Combine 2D solutions
-                            }
+                    ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
+                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2),b)).ToList());
+
                 }
                 else if (coordType == typeof(Coordinate))
                 {

@@ -536,10 +536,15 @@ namespace SpatialEnrichment
             var tskLst = new List<Task>();
             //var sortLL = new SortedIntersectionData(Lines.Count);
             var cmesh = new CoordMesh(Lines);
+            int TryCounter = 0;
             while (cellPQ.Count < numStartCoords) //cellPQ is a minHeap priotity queue (smaller key is better)
             {
                 var coord = (Coordinate)Coordinate.MakeRandom();
-                if (!IsCoordInHull(coord)) continue;
+                if (!IsCoordInHull(coord) && TryCounter < 1000)
+                {
+                    TryCounter++;
+                    continue;
+                }
                 //var strtCell=ComputeCellFromCoordinate(coord, sortLL, 10);
                 var strtCell = ComputeCellFromCoordinate(coord, cmesh, 10);
                 if (strtCell != null)

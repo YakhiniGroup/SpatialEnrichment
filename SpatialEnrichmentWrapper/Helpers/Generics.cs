@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SpatialEnrichmentWrapper;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,6 +41,20 @@ namespace SpatialEnrichment.Helpers
         public static void SaveToCSV(List<Coordinate> coords, string outfile, bool wait = false)
         {
             SaveToCSV(coords.Select(c => new[] { c.X, c.Y }).ToList(), outfile, wait);
+        }
+
+        public static void SaveToCSV(List<Coordinate3D> coords, string outfile, bool wait = false)
+        {
+            SaveToCSV(coords.Select(c => new[] { c.X, c.Y, c.Z }).ToList(), outfile, wait);
+        }
+
+        public static void SaveToCSV(Plane p, string outfile, bool wait = true)
+        {
+            SaveToCSV(new List<double[]>()
+            {
+                new[] { p.Normal.X, p.Normal.Y, p.Normal.Z },
+                new[] { p.MidPoint.X, p.MidPoint.Y, p.MidPoint.Z }
+            }, outfile, wait);
         }
 
         public static void Swap<T>(ref T lhs, ref T rhs)
