@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SpatialEnrichment;
 using Accord.Statistics.Analysis;
+using SpatialEnrichment.Helpers;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -32,7 +33,7 @@ namespace SpatialEnrichmentWrapper
                 case 1:
                     return Y;
                 case 2:
-                    return Y;
+                    return Z;
                 default:
                     throw new NotImplementedException("Three dimensional data does not implement get dim >2!");
             }
@@ -120,6 +121,11 @@ namespace SpatialEnrichmentWrapper
                                     StaticConfigParams.rnd.NextDouble(),
                                     StaticConfigParams.rnd.NextDouble());
         }
+
+        internal Coordinate3D Scale(double s)
+        {
+            return new Coordinate3D(s * X, s * Y, s * Z);
+        }
     }
 
 
@@ -127,7 +133,7 @@ namespace SpatialEnrichmentWrapper
     {
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
-        public Coordinate3D Normal;
+        public Coordinate3D Normal, MidPoint;
         public double D; //plane given as aX+bY+cZ=d where a,b,c is the Normal
 
         public Plane(double a, double b, double c, double d)
@@ -138,29 +144,30 @@ namespace SpatialEnrichmentWrapper
 
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
         {
-            var normalVec = a - b;
+            var normalVec = b - a;
             var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
             var d = normalVec.DotProduct(midPoints);
-            return new Plane(normalVec.X * midPoints.X, 
-                normalVec.Y * midPoints.Y, 
-                normalVec.Z * midPoints.Z, d);
-
+            return new Plane(normalVec.X * midPoints.X, normalVec.Y * midPoints.Y, normalVec.Z * midPoints.Z, d)
+                       { MidPoint = midPoints };
         }
 
         public Coordinate3D ProjectOnto(Coordinate3D coord)
         {
-            var diff = coord - new Coordinate3D(coord.X * Normal.X, coord.Y * Normal.Y, coord.Z * Normal.Z);
-            
-            return new Coordinate3D(diff.X, diff.Y, diff.Z);
+            var norm = Math.Sqrt(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z);
+            var uNormal = Normal.Scale(1.0 / norm);
+            return coord - uNormal.Scale((coord - MidPoint).DotProduct(uNormal));
+            //new Coordinate3D(coord.X * MidPoint.X, coord.Y * MidPoint.Y, coord.Z * MidPoint.Z);
+            //var dist = v.DotProduct(uNormal);
+            //return coord - uNormal.Scale(dist);
         }
 
-        public List<Coordinate> ProjectOntoAndRotate(List<Coordinate3D> coords)
+        public List<Coordinate> ProjectOntoAndRotate(List<Coordinate3D> coords, out PrincipalComponentAnalysis pca)
         {
             //Project all coordinates to plane
             var projList = coords.Select(c => ProjectOnto(c)).ToList();
             //Take the colinear points on the plane and compute their PCA
             var sourceMatrix = projList.Select(t => new[] { t.X, t.Y, t.Z }).ToArray();
-            var pca = new PrincipalComponentAnalysis() { Method = PrincipalComponentMethod.Center, Whiten = false };
+            pca = new PrincipalComponentAnalysis() { Method = PrincipalComponentMethod.Center, Whiten = false };
             var transform = pca.Learn(sourceMatrix);
 
             //Use pca for aligning plane to a 2D frame of reference.
