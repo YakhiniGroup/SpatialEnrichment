@@ -16,6 +16,7 @@ using ResearchCommonLib.DataStructures;
 using SpatialEnrichment;
 using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
+using Accord.Statistics.Analysis;
 
 namespace SpatialEnrichment
 {
@@ -49,7 +50,7 @@ namespace SpatialEnrichment
 
         private List<string> Identities;
         private bool[] PointLabels;
-        private List<Coordinate> Points;
+        private List<ICoordinate> Points;
         private List<Coordinate> ConvexHull;
         #endregion
 
@@ -57,17 +58,20 @@ namespace SpatialEnrichment
         private static Stopwatch sw = new Stopwatch();
         private Task convxTsk;
 
+        public List<ICoordinate> ProjectedFrom = null;
+        public PrincipalComponentAnalysis pca = null;
+
         public Tesselation(List<Coordinate> points, List<bool> labels, List<string> idendities)
         {
             cellCollection = new BlockingCollection<Cell>();
             centroidVisitationCounter = new ConcurrentDictionary<Coordinate, byte>(new CoordinateComparer());
             //LineIntersectionStruct = null;
             Lines = null;
-            Points = points;
+            Points = points.Cast<ICoordinate>().ToList();
             labels = labels ?? Enumerable.Repeat(true, points.Count).ToList();
             PointLabels = labels.ToArray();
             Identities = idendities.Any() ? idendities : null;
-            convxTsk = ComputeConvexHull(Points);
+            convxTsk = ComputeConvexHull(points);
 
             Line.InitNumPoints(points.Count);
             Lines = new List<Line>();
@@ -526,7 +530,6 @@ namespace SpatialEnrichment
         /// 
         /// </summary>
         /// <param name="coord">pivot coordinate</param>
-        /// <param name="recursionDepth">How many cells away do we look for neighbors</param>
         /// <returns></returns>
 
         public IEnumerable<Cell> GradientSkippingSweep(int numStartCoords, int numThreads)
@@ -545,8 +548,7 @@ namespace SpatialEnrichment
                     TryCounter++;
                     continue;
                 }
-                //var strtCell=ComputeCellFromCoordinate(coord, sortLL, 10);
-                var strtCell = ComputeCellFromCoordinate(coord, cmesh, 10);
+                var strtCell = ComputeCellFromCoordinate(coord, cmesh);
                 if (strtCell != null)
                 {
                     cellPQ.Enqueue(Math.Log(strtCell.mHG.Item1), strtCell);
@@ -584,7 +586,7 @@ namespace SpatialEnrichment
                 foreach (var cell in unseenCells)
                     tskList.Add(Task.Run(() => TraverseFromCell(cell, cmesh, AssignMap, bestCells)));
             }
-            return bestCells.Select(t => t.Value);
+            return bestCells.Select(t => t.Value).OrderBy(t=>t.mHG.Item1);
         }
 
         private void TraverseFromCell(Cell cell, CoordMesh cmesh, ConcurrentDictionary<Coordinate, int> AssignMap,
@@ -598,8 +600,8 @@ namespace SpatialEnrichment
                         AssignMap.Keys.OrderBy(k => k.EuclideanDistance(neigh.CenterOfMass)).First(), 0,
                         (a, b) => b + 1);
                 cellPQ.Enqueue(Math.Log(neigh.mHG.Item1) / Math.Log(history), neigh);
-                bestCells.Enqueue(Math.Log(neigh.mHG.Item1), neigh);
-                while (bestCells.Count > 10) bestCells.TryDequeue(out junk);
+                bestCells.Enqueue(-Math.Log(neigh.mHG.Item1), neigh);
+                while (bestCells.Count > StaticConfigParams.GetTopKResults) bestCells.TryDequeue(out junk);
             }
         }
 
@@ -610,7 +612,7 @@ namespace SpatialEnrichment
                 : SegmentCellCovered.Left;
         }
 
-        public Cell ComputeCellFromCoordinate(Coordinate coord, CoordMesh sortLL, int recursionDepth = 1)
+        public Cell ComputeCellFromCoordinate(Coordinate coord, CoordMesh sortLL)
         {
             bool banned = false;
             //Order points by distance from pivot
@@ -658,8 +660,10 @@ namespace SpatialEnrichment
             bool banned;
             var cell = DirectedCellFromSegment(sortLL, startSeg, direction, out banned);
             if (banned || cell == null) return null;
-
-            cell.ComputeRanking(Points, PointLabels, Identities);
+            if (ProjectedFrom==null)
+                cell.ComputeRanking(Points, PointLabels, Identities);
+            else
+                cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
             cell.Compute_mHG(StaticConfigParams.CorrectionType);
             cell.SetId(Interlocked.Increment(ref cellCount));
             if (cell.MyId % 100 == 0)
@@ -772,7 +776,7 @@ namespace SpatialEnrichment
             return openSegment;
         }
 
-        private void GetCellNeighbors(int recursionDepth, Cell prevCell, CoordMesh sortLL)
+        private void GetCellNeighbors(Cell prevCell, CoordMesh sortLL)
         {
             foreach (var seg in prevCell.GetCellWalls())
             {
@@ -793,7 +797,7 @@ namespace SpatialEnrichment
                     else
                         throw new Exception("Bad coordinate sample. Try reducing Program.Tolerence.");
                 }
-                var neighbor = ComputeCellFromCoordinate(containingCoordinate, sortLL, recursionDepth);
+                var neighbor = ComputeCellFromCoordinate(containingCoordinate, sortLL);
                 if (neighbor != null &&
                     ((StaticConfigParams.ActionList & Actions.Search_GradientDescent) == 0 ||
                      PointLabels[ClosestPointId(seg.Source, containingCoordinate)]))
@@ -818,29 +822,6 @@ namespace SpatialEnrichment
             var p1dist = Points[line.PointAId].EuclideanDistance(coord);
             var p2dist = Points[line.PointBId].EuclideanDistance(coord);
             return p1dist < p2dist ? line.PointAId : line.PointBId;
-        }
-
-        public void RejectionSamplingCells(int numSamples)
-        {
-            var pointData = Points.Zip(PointLabels, (a, b) => new {Point = a, Label = b}).ToList();
-            var posNormalizer = pointData.Where(t=>t.Label).Sum(t=>1.0);
-            var negNormalizer = pointData.Where(t => !t.Label).Sum(t => 1.0);
-            Parallel.For(0, numSamples, i =>
-            {
-                Coordinate rndCoord;
-                var posdensity = 0.0;
-                var negdensity = 0.0;
-                do
-                {   //generate a random coordinate
-                    rndCoord = (Coordinate)Coordinate.MakeRandom(); 
-                    //Measure its probability density
-                    posdensity = pointData.AsParallel().Where(t=>t.Label).Sum(coordinate=>GeometryHelpers.ComputeGaussianDensity(rndCoord, coordinate.Point)) / posNormalizer;
-                    negdensity = pointData.AsParallel().Where(t=>!t.Label).Sum(coordinate=>GeometryHelpers.ComputeGaussianDensity(rndCoord, coordinate.Point)) / negNormalizer;
-                    //check if over rejection threshold
-                } while (StaticConfigParams.rnd.NextDouble() < (posdensity-negdensity));
-                //a coordinate survived the sampling! add it.
-                Console.WriteLine(@"A coordinate survived! {0}, pos={1} neg={2}", rndCoord, posdensity, negdensity);
-            });
         }
 
         public static void Reset()

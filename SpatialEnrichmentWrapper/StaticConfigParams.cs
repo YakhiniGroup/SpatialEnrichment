@@ -23,10 +23,7 @@ namespace SpatialEnrichmentWrapper
         Search_SimulatedAnnealing = 1 << 7,
         Search_FixedSet = 1 << 8,
         Search_LineSweep = 1 << 9
-
     }
-
-    public enum CellCountStrategy { Exact_edges, UE_IgnoreSkips }
 
     public static class StaticConfigParams
     {
@@ -42,7 +39,7 @@ namespace SpatialEnrichmentWrapper
 
         public static Stopwatch timer = new Stopwatch();
         public const double TOLERANCE = 1E-10;
-        public const double CONST_NEGATIVELABELRATE = 0.9;
+        public const double CONST_NEGATIVELABELRATE = 0.75;
         public const double ExploreExploitRatio = 0.9;
         public const double CONST_SIGNIFICANCE_THRESHOLD = 0.05;
         public const int CONST_CONCURRENCY = 30;
@@ -53,5 +50,6 @@ namespace SpatialEnrichmentWrapper
         public static string filenamesuffix = "";
         public static Random rnd = new Random();
         public static double Cellcount;
+        public static int GetTopKResults = 100;
     }
 }

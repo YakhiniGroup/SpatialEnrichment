@@ -19,7 +19,7 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 20;
+            var numcoords = 30;
             if(StaticConfigParams.CONST_SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", StaticConfigParams.CONST_SKIP_SLACK);
             if (StaticConfigParams.WriteToCSV)
@@ -30,17 +30,22 @@ namespace SpatialEnrichment
             StaticConfigParams.timer.Start();
             #endregion
 
-            if (StaticConfigParams.WriteToCSV)
-                foreach (var dir in new List<string>() { "Cells", "Planes" })
+            foreach (var dir in new List<string>() { "Cells", "Planes" })
+            {
+                var di = new DirectoryInfo(dir);
+                if (!di.Exists)
+                    di.Create();
+                foreach (FileInfo file in di.GetFiles())
                 {
-                    var di = new DirectoryInfo(dir);
-                    if (!di.Exists)
-                        di.Create();
-                    foreach (FileInfo file in di.GetFiles())
-                    {
-                        file.Delete();
-                    }
+                    file.Delete();
                 }
+            }
+            foreach (var filemask in new List<string>() { "lines_*.csv", "coordSample_*.csv " })
+            {
+                FileInfo[] taskFiles = new DirectoryInfo(Directory.GetCurrentDirectory()).GetFiles(filemask); 
+                foreach (FileInfo file in taskFiles)
+                    file.Delete();
+            }
             //Load coordinates and labels
             var identities = new List<string>();
 
@@ -61,6 +66,7 @@ namespace SpatialEnrichment
                 var ones = labels.Count(l => l);
                 var linecount = ones * (numcoords - ones);
                 StaticConfigParams.Cellcount = ((long)linecount * (linecount - 1)) / 2.0 + linecount + 1;
+
                 //Look at lazy caretaker numbers. Note, we don't actually cover open cells 
                 //so its -linecount as each line has two open cells on either side of it, 
                 //and each open cell is made up of two lines.
@@ -74,11 +80,16 @@ namespace SpatialEnrichment
                 var coordType = coordinates.First().GetType();
                 if (coordType == typeof(Coordinate3D))
                 {
+                    StaticConfigParams.Cellcount += MathExtensions.Binomial(linecount, 3);
                     var ew = new EnrichmentWrapper();
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, StaticConfigParams.Cellcount, mHGJumper.optHGT);
-                    ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
-                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2),b)).ToList());
+                    var results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
+                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2), b)).ToList());
 
+                    for (var resid = 0; resid < results.Count; resid++)
+                    {
+                        results[resid].SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", resid, StaticConfigParams.filenamesuffix));
+                    }
                 }
                 else if (coordType == typeof(Coordinate))
                 {

@@ -42,15 +42,20 @@ namespace SpatialEnrichmentWrapper
                         if (StaticConfigParams.WriteToCSV)
                             Generics.SaveToCSV(plane, $@"Planes\plane{idx}.csv", true);
                         var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates, out PrincipalComponentAnalysis pca);
-                        //Solve 2D problem
-                        StaticConfigParams.filenamesuffix = "_"+idx;
-                        var res = Solve2DProblem(subProblemIn2D, labels);
                         pca.NumberOfOutputs = 3; //project back to 3D
+                        //Solve 2D problem
+                        StaticConfigParams.filenamesuffix = idx.ToString();
+                        var res = Solve2DProblem(subProblemIn2D, labels, coordinates, pca);
                         foreach (var mHGresult2D in res)
-                            solutions.Add(new SpatialmHGResult3D(mHGresult2D, pca));
+                        {
+                            var projectedResult = new SpatialmHGResult3D(mHGresult2D, pca, idx);
+                            solutions.Add(projectedResult);
+                        }
                     }
             //Combine 2D solutions
-            var combinedResultsNaive = solutions.OrderBy(t => t.pvalue).Take(20).ToList();
+            var combinedResultsNaive = solutions.OrderBy(t => t.pvalue)
+                .TakeWhile(t => t.pvalue < StaticConfigParams.CONST_SIGNIFICANCE_THRESHOLD)
+                .Take(StaticConfigParams.GetTopKResults).ToList();
             return combinedResultsNaive;
         }
 
@@ -62,9 +67,11 @@ namespace SpatialEnrichmentWrapper
             mHGJumper.optHGT = 0.05;
         }
 
-        private static List<SpatialmHGResult> Solve2DProblem(List<Coordinate> coords, List<bool> labels)
+        private static List<SpatialmHGResult> Solve2DProblem(List<Coordinate> coords, List<bool> labels, List<Coordinate3D> projectedFrom = null, PrincipalComponentAnalysis pca = null)
         {
-            var T = new Tesselation(coords, labels, new List<string>());
+            var T = new Tesselation(coords, labels, new List<string>()) { pca = pca };
+            if (projectedFrom != null)
+                T.ProjectedFrom = projectedFrom.Cast<ICoordinate>().ToList();
             var topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1);
             Tesselation.Reset();
             return topResults.Select(t => new SpatialmHGResult(t)).ToList();
@@ -109,8 +116,10 @@ namespace SpatialEnrichmentWrapper
         public double pvalue { get; private set; } //the enrichment score
         public List<Tuple<double, double, double>> enrichmentPolygon { get; private set; } //the actual bounding polygon vertices (i.e. structure of enrichment "sphere")
 
-        public SpatialmHGResult3D(SpatialmHGResult c, PrincipalComponentAnalysis pca)
+        private int PlaneId;
+        public SpatialmHGResult3D(SpatialmHGResult c, PrincipalComponentAnalysis pca, int planeId = -1)
         {
+            PlaneId = planeId;
             this.pvalue = c.pvalue;
             this.mHGthreshold = c.mHGthreshold;
             var reverted_CoM = pca.Revert(new[] { new[] { c.X, c.Y } });
@@ -119,6 +128,14 @@ namespace SpatialEnrichmentWrapper
             this.Z = reverted_CoM[0][2];
             var reverted_enrichPol = pca.Revert(c.enrichmentPolygon.Select(p => new[] { p.Item1, p.Item2 }).ToArray());
             enrichmentPolygon = reverted_enrichPol.Select(v=>new Tuple<double,double,double>(v[0], v[1], v[2])).ToList();
+        }
+
+        public void SaveToCSV(string filename)
+        {
+            var toSave = new List<double[]>() { new[] { pvalue, mHGthreshold } };
+            toSave.AddRange(enrichmentPolygon.Select(p => new[] { p.Item1, p.Item2, p.Item3 }));
+            toSave.Add(new[] { enrichmentPolygon.First().Item1, enrichmentPolygon.First().Item2, enrichmentPolygon.First().Item3 });
+            Generics.SaveToCSV(toSave, filename, true);
         }
     }
 }

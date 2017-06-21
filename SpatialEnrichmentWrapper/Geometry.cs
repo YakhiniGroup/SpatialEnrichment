@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
+using Accord.Statistics.Analysis;
 
 namespace SpatialEnrichment
 {
@@ -677,13 +678,21 @@ namespace SpatialEnrichment
             //PointRanks = sortedPoints.Select(t=>);
         }
 
-        public void ComputeRanking(List<Coordinate> points, bool[] pointLabels, List<string> identities=null)
+        public void ComputeRanking(List<ICoordinate> points, bool[] pointLabels, List<string> identities = null, PrincipalComponentAnalysis pca = null)
         {
-            var mapping = new Dictionary<Coordinate, Tuple<int, bool, double, string>>(); //original idx, 1/0 label, distance, string name (for debugging)
+            var mapping = new Dictionary<ICoordinate, Tuple<int, bool, double, string>>(); //original idx, 1/0 label, distance, string name (for debugging)
+            ICoordinate remappedCenter;
+            if (pca != null)
+            {
+                var reverted = pca.Revert(new[] { new[] { CenterOfMass.X, CenterOfMass.Y } });
+                remappedCenter = new Coordinate3D(reverted[0][0], reverted[0][1], reverted[0][2]);
+            }
+            else
+                remappedCenter = CenterOfMass;
             for (var i = 0; i < points.Count; i++)
             {
                 mapping.Add(points[i],
-                    new Tuple<int, bool, double, string>(i, pointLabels[i], points[i].EuclideanDistance(CenterOfMass),
+                    new Tuple<int, bool, double, string>(i, pointLabels[i], points[i].EuclideanDistance(remappedCenter),
                         identities != null ? identities[i] : ""));
             }
             var rankedMap = mapping.OrderBy(pt => pt.Value.Item3).ToList();
@@ -760,7 +769,6 @@ namespace SpatialEnrichment
             lock (locker)
             {
                 _mHG = mHGJumper.minimumHypergeometric(InducedLabledVector, -1, -1, correctionType);
-                //_mHG = Helpers.mHG.minimumHypergeometric(InducedLabledVector, -1, -1, correctionType);
             }
             return _mHG;
         }
