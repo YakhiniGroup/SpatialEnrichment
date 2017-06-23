@@ -75,15 +75,28 @@ namespace SpatialEnrichment
 
             Line.InitNumPoints(points.Count);
             Lines = new List<Line>();
+            int ignoredLines = 0;
             for (var i = 0; i < points.Count; i++)
                 for (var j = i + 1; j < points.Count; j++)
                     if (labels[i] != labels[j])
                     {
                         var line = Line.Bisector(points[i], points[j]);
-                        line.SetPointIds(i, j);
-                        Lines.Add(line);
+                        var lineNormVec = new Coordinate(line.Slope, -1);
+                        var d = -line.Intercept;
+                        var pointSide = points.Select(p => (lineNormVec.DotProduct(p)-d)>0).ToList(); //On which side of plane is the point?
+                        var oneSidedProblem = labels.Zip(pointSide, (l, s) => l == s).ToList();
+                        if (oneSidedProblem.All(p => p) || oneSidedProblem.All(p => !p))
+                        {
+                            //ignore lines where all points of same label are located on one side
+                            ignoredLines++;
+                        }
+                        else
+                        {
+                            line.SetPointIds(i, j);
+                            Lines.Add(line);
+                        }
                     }
-            Console.WriteLine(@"Found {0} lines.", Lines.Count);
+            Console.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
             Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
         }
 
