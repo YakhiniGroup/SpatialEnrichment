@@ -84,11 +84,12 @@ namespace SpatialEnrichment
                         var lineNormVec = new Coordinate(line.Slope, -1);
                         var d = -line.Intercept;
                         var pointSide = points.Select(p => (lineNormVec.DotProduct(p)-d)>0).ToList(); //On which side of plane is the point?
-                        var oneSidedProblem = labels.Zip(pointSide, (l, s) => l == s).ToList();
-                        if (oneSidedProblem.All(p => p) || oneSidedProblem.All(p => !p))
+                        var isOneSidedProblem = labels.Zip(pointSide, (l, s) => new { Label= l, Side =s}).Where(p=>p.Label==true).Select(p=> p.Side).ToList();
+                        if (isOneSidedProblem.All(p => p) || isOneSidedProblem.All(p => !p))
                         {
-                            //ignore lines where all points of same label are located on one side
+                            //ignore lines where all points of 'true' label are located on one side
                             ignoredLines++;
+                            Line.Count--;
                         }
                         else
                         {
@@ -726,9 +727,10 @@ namespace SpatialEnrichment
             }
         }
 
-        private LineSegment NearestAllowedSegment(Cell prevCell, CoordMesh sortLL, List<Line> sortedLines, LineSegment seg, SegmentCellCovered coverageDirection)
+        private LineSegment NearestAllowedSegment(Cell prevCell, CoordMesh sortLL, IEnumerable<Line> sortedLines, LineSegment seg, SegmentCellCovered coverageDirection)
         {
-            if (!sortedLines.Any()) return null;
+            var SLe = sortedLines.GetEnumerator();
+            //if (!sortedLines.Any()) return null;
             //We skip from the current segment and find the nearest allowed segment on both sides.
 
             int skipped = 0; //counts actual number of skips from prevCells
@@ -745,10 +747,10 @@ namespace SpatialEnrichment
             var skipsArray = prevCell.mHG.Item3.ToArray(); //min number of skips per threshold to beat mHG opt
             Line lastLine = null;
             var lid = 0;
-            while(openSegment == null && lid < sortedLines.Count)
+            while(openSegment == null && SLe.MoveNext())
             {
-                var line = sortedLines[lid];
-                lid++;
+                var line = SLe.Current;
+                //lid++;
                 var ptArnk = prevCell.PointRanks[line.PointAId];
                 var ptBrnk = prevCell.PointRanks[line.PointBId];
                 if (ptArnk > ptBrnk) Generics.Swap(ref ptArnk, ref ptBrnk);

@@ -13,7 +13,7 @@ namespace SpatialEnrichment
     public class CoordMesh
     {
         private List<Line> Lines;
-        public Dictionary<int, List<Coordinate>> LineToCoords;
+        public List<Coordinate>[] LineToCoords;
         private Coordinate[,] LineIntersections; //maps a coordinate to its 4 (max) neighbors on the mesh
         private bool[,] CoveredIntersectionsRight, CoveredIntersectionsLeft;
         private Coordinate[] coords; //maps coordid to coord
@@ -26,7 +26,7 @@ namespace SpatialEnrichment
         {
             var sw = Stopwatch.StartNew();
             Console.Write("Building mesh... ");
-            LineToCoords = new Dictionary<int ,List<Coordinate>>();
+            LineToCoords = new List<Coordinate>[lines.Count];
             Lines = lines;
             Nlines = lines.Count;
             l1id = new List<int>(Nlines);
@@ -127,7 +127,7 @@ namespace SpatialEnrichment
         }
 
 
-        public Tuple<List<Line>,List<Line>> GetAllLinesAroundSegment(LineSegment seg)
+        public Tuple<IEnumerable<Line>, IEnumerable<Line>> GetAllLinesAroundSegment(LineSegment seg)
         {
             Coordinate leftCoord, rightCoord;
             if(seg.FirstIntersectionCoord.X < seg.SecondIntersectionCoord.X)
@@ -142,14 +142,28 @@ namespace SpatialEnrichment
             }
             var firstIdx = LineToCoords[seg.Source.Id].BinarySearch(leftCoord, new CoordinateComparer());
             var secondIdx = firstIdx + 1;
+
+            /*
+            var leftList = new List<Line>(firstIdx+1);
+            var rightList = new List<Line>(LineToCoords[seg.Source.Id].Count - firstIdx - 1);
+            for (var i= firstIdx + 1; i>=0; i--)
+            {
+                var c = LineToCoords[seg.Source.Id][i];
+                leftList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
+            }
+            for (var i=secondIdx; i< LineToCoords[seg.Source.Id].Count; i++)
+            {
+                var c = LineToCoords[seg.Source.Id][i];
+                rightList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
+            }
+            */
             var leftCoords = LineToCoords[seg.Source.Id].Take(firstIdx + 1).Reverse();
             var rightCoords = LineToCoords[seg.Source.Id].Skip(secondIdx);
-
             var leftList = leftCoords
-                .Select(c => Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]).ToList();
+                .Select(c => Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
             var rightList = rightCoords
-                .Select(c => Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]).ToList();
-            return new Tuple<List<Line>, List<Line>>(leftList, rightList);
+                .Select(c => Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
+            return new Tuple<IEnumerable<Line>, IEnumerable<Line>>(leftList, rightList);
         }
 
         public LineSegment GetSegmentContainingCoordinateOnLine(int closestLineId, Coordinate startCoord)
