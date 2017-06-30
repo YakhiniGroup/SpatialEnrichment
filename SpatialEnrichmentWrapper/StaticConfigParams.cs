@@ -22,15 +22,18 @@ namespace SpatialEnrichmentWrapper
         Program_RandomConstSeed = 1 << 6,           //If used Const for seed 
         Search_SimulatedAnnealing = 1 << 7,
         Search_FixedSet = 1 << 8,
-        Search_LineSweep = 1 << 9
+        Search_LineSweep = 1 << 9,
+        Filter_DegenerateLines = 1 << 10
     }
 
     public static class StaticConfigParams
     {
         public static bool WriteToCSV = false; //writes cell to files
         public const Actions ActionList =
-            Actions.Program_RandomConstSeed |
-            Actions.Instance_Uniform |
+            //Actions.Program_RandomConstSeed |
+            Actions.Instance_PlantedSingleEnrichment |
+            //Actions.Instance_Uniform |
+            Actions.Filter_DegenerateLines |
             //Actions.Search_Originals;
             //Actions.Search_Exhaustive;
             //Actions.Search_LineSweep;
@@ -39,7 +42,7 @@ namespace SpatialEnrichmentWrapper
 
         public static Stopwatch timer = new Stopwatch();
         public const double TOLERANCE = 1E-10;
-        public const double CONST_NEGATIVELABELRATE = 0.75;
+        public const double CONST_NEGATIVELABELRATE = 0.6;
         public const double ExploreExploitRatio = 0.9;
         public const double CONST_SIGNIFICANCE_THRESHOLD = 0.05;
         public const int CONST_CONCURRENCY = 30;
@@ -50,6 +53,9 @@ namespace SpatialEnrichmentWrapper
         public static string filenamesuffix = "";
         public static Random rnd = new Random();
         public static double Cellcount;
-        public static int GetTopKResults = 100;
+        public static int GetTopKResults = 10;
+        public static double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
+        public static List<Tuple<double, int>> mHGlist = new List<Tuple<double, int>>();
+        public static int computedMHGs;
     }
 }

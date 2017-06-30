@@ -62,6 +62,32 @@ namespace SpatialEnrichment
                         throw new ArgumentException("Input file not found!");
                 else
                     RandomizeCoordinatesAndSave(numcoords, coordinates, StaticConfigParams.rnd, labels);
+
+                var zeros = labels.Count(l => l == false);
+                var filterCount = (int)(StaticConfigParams.FilterKFurthestZeros * zeros);
+                if (filterCount > 0)
+                {
+                    Console.WriteLine("Filtering {0} far away points", filterCount);
+                    var positives = new List<ICoordinate>();
+                    var negatives = new List<ICoordinate>();
+                    var negIds = new List<int>();
+                    for (var i = 0; i < coordinates.Count; i++)
+                    {
+                        if (labels[i])
+                            positives.Add(coordinates[i]);
+                        else
+                        {
+                            negatives.Add(coordinates[i]);
+                            negIds.Add(i);
+                        }
+                    }
+                    var negMinDist = new HashSet<int>(negatives.Zip(negIds, (a, b) => new { PosMinDist = positives.Select(p => p.EuclideanDistance(a)).Min(), Id = b })
+                        .OrderByDescending(n => n.PosMinDist).Select(t => t.Id).Take(filterCount));
+                    coordinates = coordinates.Where((a, b) => !negMinDist.Contains(b)).ToList();
+                    labels = labels.Where((a, b) => !negMinDist.Contains(b)).ToList();
+                    numcoords -= filterCount;
+                }
+
                 //Actual work starts here
                 var ones = labels.Count(l => l);
                 var linecount = ones * (numcoords - ones);
@@ -126,9 +152,12 @@ namespace SpatialEnrichment
                     Tesselation.Reset();
                 }
             }
-            
+            using (var outfile = new StreamWriter("mhglist.csv"))
+                foreach (var res in StaticConfigParams.mHGlist.Where(t=>t!=null))
+                    outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
+
             //Finalize
-            if(args.Length == 0 || Debugger.IsAttached)
+            if (args.Length == 0 || Debugger.IsAttached)
             {
                 Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", StaticConfigParams.timer.Elapsed);
                 Console.ReadKey();
@@ -181,9 +210,9 @@ namespace SpatialEnrichment
                 for (var i = 0; i < numcoords; i++)
                     if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
                         coordinates.Add(Coordinate.MakeRandom());
-                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
                         coordinates.Add(Coordinate3D.MakeRandom());
-                ICoordinate pivotCoord;
+                ICoordinate pivotCoord = null;
                 if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
                     pivotCoord = Coordinate.MakeRandom();
                 else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))

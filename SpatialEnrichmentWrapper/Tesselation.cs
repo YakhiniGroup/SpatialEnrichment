@@ -25,6 +25,7 @@ namespace SpatialEnrichment
     {
         #region Cell
         private int cellCount = 0, completeCellCount = 0;
+        private double EstimatedCellCount;
         private readonly BlockingCollection<Cell> cellCollection;
         private readonly ConcurrentPriorityQueue<double,Cell> cellPQ = new ConcurrentPriorityQueue<double, Cell>();
         private readonly ConcurrentDictionary<Coordinate, byte> centroidVisitationCounter;
@@ -35,8 +36,9 @@ namespace SpatialEnrichment
         #region Line
         //public SortedIntersectionData LineIntersectionStruct;
         public static List<Line> Lines;
+        private bool[] DepletedLines;
         //private ConcurrentDictionary<LineSegment, SegmentCellCovered> segmentCycles; 
-        
+
         [Flags]
         public enum SegmentCellCovered : byte  { None = 0, Right = 1, Left = 2, Both = Right | Left};
 
@@ -85,7 +87,8 @@ namespace SpatialEnrichment
                         var d = -line.Intercept;
                         var pointSide = points.Select(p => (lineNormVec.DotProduct(p)-d)>0).ToList(); //On which side of plane is the point?
                         var isOneSidedProblem = labels.Zip(pointSide, (l, s) => new { Label= l, Side =s}).Where(p=>p.Label==true).Select(p=> p.Side).ToList();
-                        if (isOneSidedProblem.All(p => p) || isOneSidedProblem.All(p => !p))
+                        if ((isOneSidedProblem.All(p => p) || isOneSidedProblem.All(p => !p)) && 
+                            (StaticConfigParams.ActionList & Actions.Filter_DegenerateLines) != 0)
                         {
                             //ignore lines where all points of 'true' label are located on one side
                             ignoredLines++;
@@ -98,6 +101,8 @@ namespace SpatialEnrichment
                         }
                     }
             Console.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
+            EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
+            DepletedLines = new bool[Lines.Count];
             Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
         }
 
@@ -594,6 +599,7 @@ namespace SpatialEnrichment
                 }
                 Task.WaitAll(tskLst.ToArray());
                 tskList.Clear();
+                Console.WriteLine("Finished traversal, resampling from leftovers.");
                 var unseenCells = cmesh.GetUncoveredSegments().AsParallel()
                     .Select(seg => CoverCellFromSegment(cmesh, seg.Item1, seg.Item2))
                     .Where(t => t != null).Take(numStartCoords).ToList();
@@ -684,9 +690,10 @@ namespace SpatialEnrichment
             {
                 var numcovered = (int) (sortLL.segmentCount / 8);
                 var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / StaticConfigParams.Cellcount
-                Console.Write("\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
+                Console.Write("\r\r\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
                     percentCovered, cell.CenterOfMass.ToString("0.000"),
-                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, new TimeSpan(0, 0, (int)((StaticConfigParams.Cellcount - cellCount) / (cellCount / sw.Elapsed.TotalSeconds))));
+                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, 
+                    new TimeSpan(0, 0, (int)((EstimatedCellCount - numcovered) / (numcovered / sw.Elapsed.TotalSeconds))));
                 if (!sw.IsRunning)
                     sw.Start();
             }
@@ -700,6 +707,8 @@ namespace SpatialEnrichment
             //var requiredSkips = prevCell.mHG.Item3;
             foreach (var seg in prevCell.GetCellWalls())
             {
+                if (DepletedLines[seg.Source.Id])
+                    continue;
                 //Check which side of the segment is contained in the cell
                 var isLeftAngle = LineSegment.GetAngle(seg.FirstIntersectionCoord, seg.SecondIntersectionCoord,
                                     seg.FirstIntersectionCoord, prevCell.CenterOfMass) > 180;
@@ -719,11 +728,13 @@ namespace SpatialEnrichment
                     new Tuple<LineSegment, SegmentCellCovered>(leftSegment, isLeftAngle ? SegmentCellCovered.Right : SegmentCellCovered.Left),
                     new Tuple<LineSegment, SegmentCellCovered>(rightSegment, isLeftAngle ? SegmentCellCovered.Left : SegmentCellCovered.Right)
                 };
-
                 foreach (var legalSeg in segList.Where(tseg => tseg.Item1!=null))
                     {
                         yield return CoverCellFromSegment(sortLL, legalSeg.Item1, legalSeg.Item2);
                     }
+                if (leftSegment == null && rightSegment == null)
+                    DepletedLines[seg.Source.Id] = true;
+
             }
         }
 

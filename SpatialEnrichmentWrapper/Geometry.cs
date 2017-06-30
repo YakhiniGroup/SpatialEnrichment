@@ -769,6 +769,7 @@ namespace SpatialEnrichment
             lock (locker)
             {
                 _mHG = mHGJumper.minimumHypergeometric(InducedLabledVector, -1, -1, correctionType);
+                StaticConfigParams.mHGlist.Add(new Tuple<double, int>(mHG.Item1, Interlocked.Increment(ref StaticConfigParams.computedMHGs)));
             }
             return _mHG;
         }
