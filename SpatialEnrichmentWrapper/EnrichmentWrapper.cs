@@ -28,15 +28,16 @@ namespace SpatialEnrichmentWrapper
         /// </summary>
         /// <param name="coordinates">tuple of (x,y,label)</param>
         /// <returns>a list of enriched 2d location centers as SpatialmHGResult</returns>
-        public List<SpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
+        public List<ISpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
         {
             var labels = coordinates.Select(t => t.Item3).ToList();
             var coords = coordinates.Select(t => new Coordinate(t.Item1, t.Item2)).ToList();
             InitializeMHG(labels);
-            return Solve2DProblem(coords, labels);
+            var solutions = Solve2DProblem(coords, labels);
+            return solutions.Cast<ISpatialmHGResult>().ToList();
         }
 
-        public List<SpatialmHGResult3D> SpatialmHGWrapper3D(List<Tuple<double, double, double, bool>> input)
+        public List<ISpatialmHGResult> SpatialmHGWrapper3D(List<Tuple<double, double, double, bool>> input)
         {
             var coordinates = input.Select(c => new Coordinate3D(c.Item1, c.Item2, c.Item3)).ToList();
             var labels = input.Select(c => c.Item4).ToList();
@@ -93,7 +94,7 @@ namespace SpatialEnrichmentWrapper
                 else
                     break;
             }
-            return combinedResultsNaive;
+            return combinedResultsNaive.Cast<ISpatialmHGResult>().ToList();
         }
 
         private static void InitializeMHG(List<bool> labels)
@@ -109,7 +110,34 @@ namespace SpatialEnrichmentWrapper
             var T = new Tesselation(coords, labels, new List<string>(), Config) { pca = pca };
             if (projectedFrom != null)
                 T.ProjectedFrom = projectedFrom.Cast<ICoordinate>().ToList();
-            var topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1);
+
+            IEnumerable<Cell> topResults = null;
+            if ((Config.ActionList & Actions.Search_CoordinateSample) != 0)
+            {
+                topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1);
+            }
+            if ((Config.ActionList & Actions.Search_Exhaustive) != 0)
+            {
+                T.GenerateFromCoordinates();
+            }
+            if ((Config.ActionList & Actions.Search_Originals) != 0)
+            {
+                //mHGOnOriginalPoints(args, coordinates, labels, numcoords);
+            }
+            if ((Config.ActionList & Actions.Search_FixedSet) != 0)
+            {
+                /*
+                var avgX = coordinates.Select(c => c.GetDimension(0)).Average();
+                var avgY = coordinates.Select(c => c.GetDimension(1)).Average();
+                var cord = new Coordinate(avgX, avgY);
+                mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<ICoordinate>() { cord });
+                */
+            }
+            if ((Config.ActionList & Actions.Search_LineSweep) != 0)
+            {
+                T.LineSweep();
+            }
+            
             Tesselation.Reset();
             return topResults.Select(t => new SpatialmHGResult(t)).ToList();
         }
@@ -118,7 +146,7 @@ namespace SpatialEnrichmentWrapper
     /// <summary>
     /// Enriched 2d location centers with score and meta data
     /// </summary>
-    public class SpatialmHGResult
+    public class SpatialmHGResult : ISpatialmHGResult
     {
         //the center of the enrichment "sphere"
         public double X { get; private set; }
@@ -140,9 +168,16 @@ namespace SpatialEnrichmentWrapper
                 enrichmentPolygon.Add(new Tuple<double, double>(coord.X, coord.Y));
             }
         }
+        public void SaveToCSV(string filename)
+        {
+            var toSave = new List<double[]>() { new[] { pvalue, mHGthreshold } };
+            toSave.AddRange(enrichmentPolygon.Select(p => new[] { p.Item1, p.Item2 }));
+            toSave.Add(new[] { enrichmentPolygon.First().Item1, enrichmentPolygon.First().Item2 });
+            Generics.SaveToCSV(toSave, filename, true);
+        }
     }
 
-    public class SpatialmHGResult3D
+    public class SpatialmHGResult3D : ISpatialmHGResult
     {
         //the center of the enrichment "sphere"
         public double X { get; private set; }
@@ -179,5 +214,11 @@ namespace SpatialEnrichmentWrapper
             toSave.Add(new[] { enrichmentPolygon.First().Item1, enrichmentPolygon.First().Item2, enrichmentPolygon.First().Item3 });
             Generics.SaveToCSV(toSave, filename, true);
         }
+    }
+
+
+    public interface ISpatialmHGResult
+    {
+        void SaveToCSV(string csv);
     }
 }

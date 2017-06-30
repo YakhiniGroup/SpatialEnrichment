@@ -20,7 +20,7 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 30;
+            var numcoords = 7;
             Config = new ConfigParams();
             if(Config.SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", Config.SKIP_SLACK);
@@ -106,52 +106,24 @@ namespace SpatialEnrichment
                 //Debugging.debug_mHG(numcoords,ones);
                 Tesselation T = null;
                 var coordType = coordinates.First().GetType();
+                var ew = new EnrichmentWrapper(Config);
+                List<ISpatialmHGResult> results = null;
                 if (coordType == typeof(Coordinate3D))
                 {
                     Config.Cellcount += MathExtensions.Binomial(linecount, 3);
-                    var ew = new EnrichmentWrapper(Config);
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
-                    var results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
+                    results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
                         (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2), b)).ToList());
-
-                    for (var resid = 0; resid < results.Count; resid++)
-                    {
-                        results[resid].SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", resid, StaticConfigParams.filenamesuffix));
-                    }
                 }
                 else if (coordType == typeof(Coordinate))
                 {
                     Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
-                    T = new Tesselation(coordinates.Select(c => (Coordinate) c).ToList(), labels, identities, Config);
-                
-                    if ((Config.ActionList & Actions.Search_CoordinateSample) != 0)
-                    {
-                        T.GradientSkippingSweep(
-                        numStartCoords: 20,
-                        numThreads: Environment.ProcessorCount - 1);
-                        //numStartCoords: 1,
-                        //numThreads: 1);
-                    }
-                    if ((Config.ActionList & Actions.Search_Exhaustive) != 0)
-                    {
-                        T.GenerateFromCoordinates();
-                    }
-                    if ((Config.ActionList & Actions.Search_Originals) != 0)
-                    {
-                        mHGOnOriginalPoints(args, coordinates, labels, numcoords);
-                    }
-                    if ((Config.ActionList & Actions.Search_FixedSet) != 0)
-                    {
-                        var avgX = coordinates.Select(c => c.GetDimension(0)).Average();
-                        var avgY = coordinates.Select(c => c.GetDimension(1)).Average();
-                        var cord = new Coordinate(avgX, avgY);
-                        mHGOnOriginalPoints(args, coordinates, labels, numcoords, new List<ICoordinate>() { cord });
-                    }
-                    if ((Config.ActionList & Actions.Search_LineSweep) != 0)
-                    {
-                        T.LineSweep();
-                    }
-                    Tesselation.Reset();
+                    results = ew.SpatialmHGWrapper(coordinates.Zip(labels, (a, b) => 
+                        new Tuple<double, double, bool>(a.GetDimension(0), a.GetDimension(1), b)).ToList());
+                }
+                for (var resid = 0; resid < results.Count; resid++)
+                {
+                    results[resid].SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", resid, StaticConfigParams.filenamesuffix));
                 }
             }
             using (var outfile = new StreamWriter("mhglist.csv"))

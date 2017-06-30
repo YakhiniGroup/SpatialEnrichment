@@ -34,7 +34,7 @@ namespace SpatialEnrichmentWrapper
         public const double ExploreExploitRatio = 0.9;
         public const int CONST_CONCURRENCY = 30;
         public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
-        public static Type RandomInstanceType = typeof(Coordinate3D);
+        public static Type RandomInstanceType = typeof(Coordinate); //Coordinate3D
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
         public static Random rnd = new Random();

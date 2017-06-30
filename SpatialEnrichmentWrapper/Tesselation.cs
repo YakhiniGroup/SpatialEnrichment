@@ -90,7 +90,7 @@ namespace SpatialEnrichment
                         var pointSide = points.Select(p => (lineNormVec.DotProduct(p)-d)>0).ToList(); //On which side of plane is the point?
                         var isOneSidedProblem = labels.Zip(pointSide, (l, s) => new { Label= l, Side =s}).Where(p=>p.Label==true).Select(p=> p.Side).ToList();
                         if ((isOneSidedProblem.All(p => p) || isOneSidedProblem.All(p => !p)) && 
-                            (Config.ActionList & Actions.Filter_DegenerateLines) != 0)
+                            (Config.ActionList & Actions.Filter_DegenerateLines) != 0 && points.Count > 100)
                         {
                             //ignore lines where all points of 'true' label are located on one side
                             ignoredLines++;
@@ -561,7 +561,7 @@ namespace SpatialEnrichment
             //var sortLL = new SortedIntersectionData(Lines.Count);
             var cmesh = new CoordMesh(Lines);
             int TryCounter = 0;
-            while (cellPQ.Count < numStartCoords) //cellPQ is a minHeap priotity queue (smaller key is better)
+            while (cellPQ.Count < numStartCoords && TryCounter < 10000) //cellPQ is a minHeap priotity queue (smaller key is better)
             {
                 var coord = (Coordinate)Coordinate.MakeRandom();
                 if (!IsCoordInHull(coord) && TryCounter < 1000)
