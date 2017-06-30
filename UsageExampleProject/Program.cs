@@ -25,7 +25,7 @@ namespace UsageExample
             Console.WriteLine("Printing results:");
             foreach (var spatialmHgResult in res)
             {
-                Console.WriteLine(spatialmHgResult.pvalue);
+                Console.WriteLine("");
             }
 
         }

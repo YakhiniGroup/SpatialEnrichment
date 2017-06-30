@@ -67,7 +67,18 @@ namespace SpatialEnrichmentWrapper
         public ConfigParams() { }
         public ConfigParams(Dictionary<string, string> fromDict)
         {
-            //TODO: fill in parsing logic
+            //TODO: improve this CTOR - exceptions
+            string actionValue;
+            string skipSlackValue;
+            string thresholdValue;
+
+            fromDict.TryGetValue("Action", out actionValue);
+            fromDict.TryGetValue("SKIP_SLACK", out skipSlackValue);
+            fromDict.TryGetValue("SIGNIFICANCE_THRESHOLD", out thresholdValue);
+
+            Enum.TryParse(actionValue, out this.ActionList);
+            int.TryParse(skipSlackValue, out this.SKIP_SLACK);
+            double.TryParse(thresholdValue, out this.SIGNIFICANCE_THRESHOLD);
         }
     }
 }
