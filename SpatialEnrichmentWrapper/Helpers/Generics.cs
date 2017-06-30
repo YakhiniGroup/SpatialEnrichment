@@ -17,25 +17,12 @@ namespace SpatialEnrichment.Helpers
 
         public static void SaveToCSV(IEnumerable<string> coords, string outfile, bool wait = false)
         {
-            if (wait)
+            var tsk = Task.Run(() =>
             {
-                using (var fs = new FileStream(outfile, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (var file = new StreamWriter(fs))
-                    foreach (var coord in coords)
-                    {
-                        file.WriteLine(coord);
-                    }
-            }
-            else
-                Task.Run(() =>
-                {
-                    using (var fs = new FileStream(outfile, FileMode.Create, FileAccess.Write, FileShare.None))
-                    using (var file = new StreamWriter(fs))
-                        foreach (var coord in coords)
-                        {
-                            file.WriteLine(coord);
-                        }
-                });
+                File.WriteAllText(outfile, string.Join("\n", coords.Select(c => c.ToString())));
+            });
+            if (wait)
+                tsk.Wait();
         }
 
         public static void SaveToCSV(List<Coordinate> coords, string outfile, bool wait = false)

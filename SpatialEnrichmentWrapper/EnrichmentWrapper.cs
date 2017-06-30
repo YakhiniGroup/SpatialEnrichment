@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using SpatialEnrichment;
 using SpatialEnrichment.Helpers;
 using Accord.Statistics.Analysis;
+using System.Collections.Concurrent;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -41,32 +42,57 @@ namespace SpatialEnrichmentWrapper
             var labels = input.Select(c => c.Item4).ToList();
             InitializeMHG(labels);
             int idx = -1;
-            var solutions = new List<SpatialmHGResult3D>();
+            var solutions = new ConcurrentPriorityQueue<double, SpatialmHGResult3D>();
+            var planeList = new ConcurrentPriorityQueue<double, Plane>(); //minheap based, smaller is better
             //Foreach perpendicular bisector plane
             for (var i = 0; i < coordinates.Count; i++)
                 for (var j = 0; j < coordinates.Count; j++)
                     if (labels[i] != labels[j])
                     {
-                        idx++;
                         //Reduce to 2D problem
                         var plane = Plane.Bisector(coordinates[i], coordinates[j]);
-                        if (StaticConfigParams.WriteToCSV)
-                            Generics.SaveToCSV(plane, $@"Planes\plane{idx}.csv", true);
-                        var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates, out PrincipalComponentAnalysis pca);
-                        pca.NumberOfOutputs = 3; //project back to 3D
-                        //Solve 2D problem
-                        StaticConfigParams.filenamesuffix = idx.ToString();
-                        var res = Solve2DProblem(subProblemIn2D, labels, coordinates, pca);
-                        foreach (var mHGresult2D in res)
-                        {
-                            var projectedResult = new SpatialmHGResult3D(mHGresult2D, pca, idx);
-                            solutions.Add(projectedResult);
-                        }
+                        planeList.Enqueue(1.0, plane);
                     }
+
+            var numPlanes = planeList.Count();
+            KeyValuePair<double, Plane> currPlane;
+            while (planeList.TryDequeue(out currPlane))
+            {
+                var plane = currPlane.Value;
+                idx++;
+                if (StaticConfigParams.WriteToCSV)
+                    Generics.SaveToCSV(plane, $@"Planes\plane{idx}.csv", true);
+                Console.WriteLine("Selected plane {0}/{1} at distance {2}",idx, numPlanes, currPlane.Key);
+                var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates, out PrincipalComponentAnalysis pca);
+                pca.NumberOfOutputs = 3; //project back to 3D
+                //Solve 2D problem
+                StaticConfigParams.filenamesuffix = idx.ToString();
+                var res = Solve2DProblem(subProblemIn2D, labels, coordinates, pca);
+                foreach (var mHGresult2D in res)
+                {
+                    var projectedResult = new SpatialmHGResult3D(mHGresult2D, pca, idx);
+                    solutions.Enqueue(projectedResult.pvalue, projectedResult);
+                }
+                KeyValuePair<double, SpatialmHGResult3D> bestCell;
+                solutions.TryPeek(out bestCell);
+                var bestCellCenter = bestCell.Value.GetCenter();
+                var remainingPlanes = planeList.Select(t => t.Value).ToList();
+                planeList.Clear();
+                foreach (var p in remainingPlanes)
+                    planeList.Enqueue(bestCellCenter.DistanceToPlane(p), p);
+            }
+
             //Combine 2D solutions
-            var combinedResultsNaive = solutions.OrderBy(t => t.pvalue)
-                .TakeWhile(t => t.pvalue < Config.SIGNIFICANCE_THRESHOLD)
-                .Take(Config.GetTopKResults).ToList();
+            var combinedResultsNaive = new List<SpatialmHGResult3D>();
+            for (var i=0; i< Config.GetTopKResults; i++)
+            {
+                KeyValuePair<double, SpatialmHGResult3D> bestCell;
+                solutions.TryDequeue(out bestCell);
+                if (bestCell.Key <= Config.SIGNIFICANCE_THRESHOLD)
+                    combinedResultsNaive.Add(bestCell.Value);
+                else
+                    break;
+            }
             return combinedResultsNaive;
         }
 
@@ -139,6 +165,11 @@ namespace SpatialEnrichmentWrapper
             this.Z = reverted_CoM[0][2];
             var reverted_enrichPol = pca.Revert(c.enrichmentPolygon.Select(p => new[] { p.Item1, p.Item2 }).ToArray());
             enrichmentPolygon = reverted_enrichPol.Select(v=>new Tuple<double,double,double>(v[0], v[1], v[2])).ToList();
+        }
+
+        public Coordinate3D GetCenter()
+        {
+            return new Coordinate3D(X, Y, Z);
         }
 
         public void SaveToCSV(string filename)

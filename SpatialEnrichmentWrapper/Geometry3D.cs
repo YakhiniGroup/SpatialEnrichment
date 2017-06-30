@@ -102,6 +102,18 @@ namespace SpatialEnrichmentWrapper
             return (this.X * other.X + this.Y * other.Y + this.Z * other.Z);
         }
 
+        internal double DistanceToPlane(Plane p)
+        {
+            var denom = Math.Abs(p.Normal.DotProduct(this) + p.D);
+            var numer = p.Normal.Norm();
+            return denom / numer;
+        }
+
+        private double Norm()
+        {
+            return Math.Sqrt(X * X + Y * Y + Z * Z);
+        }
+
         public double CrossProduct(Coordinate3D other)
         {
             throw new NotImplementedException();
