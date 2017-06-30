@@ -62,9 +62,11 @@ namespace SpatialEnrichment
 
         public List<ICoordinate> ProjectedFrom = null;
         public PrincipalComponentAnalysis pca = null;
+        private ConfigParams Config;
 
-        public Tesselation(List<Coordinate> points, List<bool> labels, List<string> idendities)
+        public Tesselation(List<Coordinate> points, List<bool> labels, List<string> idendities, ConfigParams cnf)
         {
+            Config = cnf;
             cellCollection = new BlockingCollection<Cell>();
             centroidVisitationCounter = new ConcurrentDictionary<Coordinate, byte>(new CoordinateComparer());
             //LineIntersectionStruct = null;
@@ -88,7 +90,7 @@ namespace SpatialEnrichment
                         var pointSide = points.Select(p => (lineNormVec.DotProduct(p)-d)>0).ToList(); //On which side of plane is the point?
                         var isOneSidedProblem = labels.Zip(pointSide, (l, s) => new { Label= l, Side =s}).Where(p=>p.Label==true).Select(p=> p.Side).ToList();
                         if ((isOneSidedProblem.All(p => p) || isOneSidedProblem.All(p => !p)) && 
-                            (StaticConfigParams.ActionList & Actions.Filter_DegenerateLines) != 0)
+                            (Config.ActionList & Actions.Filter_DegenerateLines) != 0)
                         {
                             //ignore lines where all points of 'true' label are located on one side
                             ignoredLines++;
@@ -520,7 +522,7 @@ namespace SpatialEnrichment
 
                         //if (precalced.Any() && !precalced.Any(t => t.mHG.Item1 < 10*StaticConfigParams.CONST_SIGNIFICANCE_THRESHOLD)) return;
                         currCell.ComputeRanking(Points, PointLabels, Identities);
-                        var res = currCell.Compute_mHG(StaticConfigParams.CorrectionType);
+                        var res = currCell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
                         var sarea = currCell.SurfaceAreaSimple();
                         var tres = new Tuple<Cell, double, int, double>(currCell, res.Item1, res.Item2, sarea);
                         if (cellmHGs.Count < 20 || res.Item2 < cellmHGs.Values.Max(t => t.Item2))
@@ -531,7 +533,7 @@ namespace SpatialEnrichment
                         //printSignificantCells.Add(new Tuple<Coordinate, double, int, double>(currCell.CenterOfMass, tres.Item2, tres.Item3, tres.Item4));
                         if (StaticConfigParams.WriteToCSV)
                             Task.Run(()=>cell.SaveToCSV(string.Format(@"Cells\CellHit{0}_{1}.csv", cell.MyId, StaticConfigParams.filenamesuffix)));
-                        if (res.Item1 < StaticConfigParams.CONST_SIGNIFICANCE_THRESHOLD)
+                        if (res.Item1 < Config.SIGNIFICANCE_THRESHOLD)
                         {
                             printSignificantCells.Add(new Tuple<Coordinate, double, int, double>(currCell.CenterOfMass, tres.Item2, tres.Item3, tres.Item4));
                         }
@@ -621,7 +623,7 @@ namespace SpatialEnrichment
                         (a, b) => b + 1);
                 cellPQ.Enqueue(Math.Log(neigh.mHG.Item1) / Math.Log(history), neigh);
                 bestCells.Enqueue(-Math.Log(neigh.mHG.Item1), neigh);
-                while (bestCells.Count > StaticConfigParams.GetTopKResults) bestCells.TryDequeue(out junk);
+                while (bestCells.Count > Config.GetTopKResults) bestCells.TryDequeue(out junk);
             }
         }
 
@@ -684,12 +686,12 @@ namespace SpatialEnrichment
                 cell.ComputeRanking(Points, PointLabels, Identities);
             else
                 cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
-            cell.Compute_mHG(StaticConfigParams.CorrectionType);
+            cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
             cell.SetId(Interlocked.Increment(ref cellCount));
             if (cell.MyId % 100 == 0)
             {
                 var numcovered = (int) (sortLL.segmentCount / 8);
-                var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / StaticConfigParams.Cellcount
+                var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / Config.Cellcount
                 Console.Write("\r\r\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
                     percentCovered, cell.CenterOfMass.ToString("0.000"),
                     numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, 
@@ -776,7 +778,7 @@ namespace SpatialEnrichment
                 skipsArray[coordVec[ptBrnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? -1 : 1;
                     //raised a 1 and lowered a 0 in the vector
 
-                var remainingSkips = skipsArray[coordVec[ptArnk]] + StaticConfigParams.CONST_SKIP_SLACK;
+                var remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
                 if (lastLine != null)
                 {
                     openSegment = sortLL.GetSegment(seg.Source.Id, lastLine, line);
@@ -788,7 +790,7 @@ namespace SpatialEnrichment
                     if (remainingSkips > 0 && !covered)
                     {
                         sortLL.CoverSegment(openSegment, coverageExtension);
-                        //if(StaticConfigParams.CellCountStrategy == )
+                        //if(Config.CellCountStrategy == )
                         Interlocked.Increment(ref cellCount);
                         if (remainingSkips > 1)
                             Interlocked.Increment(ref cellCount);
@@ -825,7 +827,7 @@ namespace SpatialEnrichment
                 }
                 var neighbor = ComputeCellFromCoordinate(containingCoordinate, sortLL);
                 if (neighbor != null &&
-                    ((StaticConfigParams.ActionList & Actions.Search_GradientDescent) == 0 ||
+                    ((Config.ActionList & Actions.Search_GradientDescent) == 0 ||
                      PointLabels[ClosestPointId(seg.Source, containingCoordinate)]))
                 {
                     prevCell.PairCellsByNeighbor(seg, neighbor);

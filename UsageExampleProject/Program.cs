@@ -19,7 +19,7 @@ namespace UsageExample
                 var label = StaticConfigParams.rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE;
                 input.Add(new Tuple<double, double, bool>(coord.GetDimension(0), coord.GetDimension(1), label));
             }
-            var ew = new EnrichmentWrapper();
+            var ew = new EnrichmentWrapper(new ConfigParams());
             var res = ew.SpatialmHGWrapper(input);
 
             Console.WriteLine("Printing results:");

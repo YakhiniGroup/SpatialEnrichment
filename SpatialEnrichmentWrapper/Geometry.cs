@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
 using Accord.Statistics.Analysis;
+using System.Threading;
 
 namespace SpatialEnrichment
 {
@@ -764,12 +765,12 @@ namespace SpatialEnrichment
                     .ToArray();
         }
 
-        public Tuple<double, int, int[]> Compute_mHG(mHGCorrectionType correctionType)
+        public Tuple<double, int, int[]> Compute_mHG(mHGCorrectionType correctionType, ConfigParams Conf)
         {
             lock (locker)
             {
                 _mHG = mHGJumper.minimumHypergeometric(InducedLabledVector, -1, -1, correctionType);
-                StaticConfigParams.mHGlist.Add(new Tuple<double, int>(mHG.Item1, Interlocked.Increment(ref StaticConfigParams.computedMHGs)));
+                Conf.mHGlist.Add(new Tuple<double, int>(mHG.Item1, Interlocked.Increment(ref Conf.computedMHGs)));
             }
             return _mHG;
         }

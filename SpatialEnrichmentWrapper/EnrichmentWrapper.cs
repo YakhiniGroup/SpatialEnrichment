@@ -11,6 +11,17 @@ namespace SpatialEnrichmentWrapper
 {
     public class EnrichmentWrapper
     {
+        ConfigParams Config;
+        public EnrichmentWrapper(Dictionary<string,string> cnf)
+        {
+            Config = new ConfigParams(cnf);
+        }
+        public EnrichmentWrapper(ConfigParams cnf)
+        {
+            Config = cnf;
+        }
+
+
         /// <summary>
         /// Gets as input a list of labeled 2d coordinates as a tuple of (x,y,label).
         /// </summary>
@@ -54,8 +65,8 @@ namespace SpatialEnrichmentWrapper
                     }
             //Combine 2D solutions
             var combinedResultsNaive = solutions.OrderBy(t => t.pvalue)
-                .TakeWhile(t => t.pvalue < StaticConfigParams.CONST_SIGNIFICANCE_THRESHOLD)
-                .Take(StaticConfigParams.GetTopKResults).ToList();
+                .TakeWhile(t => t.pvalue < Config.SIGNIFICANCE_THRESHOLD)
+                .Take(Config.GetTopKResults).ToList();
             return combinedResultsNaive;
         }
 
@@ -67,9 +78,9 @@ namespace SpatialEnrichmentWrapper
             mHGJumper.optHGT = 0.05;
         }
 
-        private static List<SpatialmHGResult> Solve2DProblem(List<Coordinate> coords, List<bool> labels, List<Coordinate3D> projectedFrom = null, PrincipalComponentAnalysis pca = null)
+        private List<SpatialmHGResult> Solve2DProblem(List<Coordinate> coords, List<bool> labels, List<Coordinate3D> projectedFrom = null, PrincipalComponentAnalysis pca = null)
         {
-            var T = new Tesselation(coords, labels, new List<string>()) { pca = pca };
+            var T = new Tesselation(coords, labels, new List<string>(), Config) { pca = pca };
             if (projectedFrom != null)
                 T.ProjectedFrom = projectedFrom.Cast<ICoordinate>().ToList();
             var topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1);

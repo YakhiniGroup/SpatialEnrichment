@@ -29,7 +29,25 @@ namespace SpatialEnrichmentWrapper
     public static class StaticConfigParams
     {
         public static bool WriteToCSV = false; //writes cell to files
-        public const Actions ActionList =
+        public const double TOLERANCE = 1E-10;
+        public const double CONST_NEGATIVELABELRATE = 0.6;
+        public const double ExploreExploitRatio = 0.9;
+        public const int CONST_CONCURRENCY = 30;
+        public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
+        public static Type RandomInstanceType = typeof(Coordinate3D);
+        public static bool ComputeSanityChecks = false;
+        public static string filenamesuffix = "";
+        public static Random rnd = new Random();
+    }
+
+    public class ConfigParams
+    {
+        //configuration parameters
+        public int SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
+        public double SIGNIFICANCE_THRESHOLD = 0.05;
+        public int GetTopKResults = 10;
+        public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
+        public Actions ActionList =
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
@@ -40,22 +58,16 @@ namespace SpatialEnrichmentWrapper
             //Actions.Search_FixedSet;
             Actions.Search_CoordinateSample | Actions.Search_GradientDescent;
 
-        public static Stopwatch timer = new Stopwatch();
-        public const double TOLERANCE = 1E-10;
-        public const double CONST_NEGATIVELABELRATE = 0.6;
-        public const double ExploreExploitRatio = 0.9;
-        public const double CONST_SIGNIFICANCE_THRESHOLD = 0.05;
-        public const int CONST_CONCURRENCY = 30;
-        public const int CONST_SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
-        public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
-        public static Type RandomInstanceType = typeof(Coordinate3D);
-        public static bool ComputeSanityChecks = false;
-        public static string filenamesuffix = "";
-        public static Random rnd = new Random();
-        public static double Cellcount;
-        public static int GetTopKResults = 10;
-        public static double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
-        public static List<Tuple<double, int>> mHGlist = new List<Tuple<double, int>>();
-        public static int computedMHGs;
+        //non-parameters
+        public double Cellcount;
+        public List<Tuple<double, int>> mHGlist = new List<Tuple<double, int>>();
+        public int computedMHGs;
+        public Stopwatch timer = new Stopwatch();
+
+        public ConfigParams() { }
+        public ConfigParams(Dictionary<string, string> fromDict)
+        {
+            //TODO: fill in parsing logic
+        }
     }
 }
