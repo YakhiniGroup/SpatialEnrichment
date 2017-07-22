@@ -576,6 +576,11 @@ namespace SpatialEnrichment
                     bestCells.Enqueue(Math.Log(strtCell.mHG.Item1), strtCell);
                     coordLst.Add(coord);
                 }
+                else
+                {
+                    TryCounter++;
+                    continue;
+                }
             }
             
             var AssignMap = new ConcurrentDictionary<Coordinate, int>();
