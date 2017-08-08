@@ -11,10 +11,10 @@ namespace DatabaseProgressQuery
 {
     public class DatabaseHandler
     {
-        public const string k_EndpointUrl = "<your endpoint URL>"; // Azure Portal -> Azure Cosmos DB account -> Keys
-        public const string k_PrimaryKey = "<your primary key>"; // Azure Portal -> Azure Cosmos DB account -> Keys
-        public const string k_DataBaseID = "<Sample DB ID>";
-        public const string k_CollectionID = "<Sample Collection ID>";
+        public const string k_EndpointUrl = "https://asafried.documents.azure.com:443/"; // Azure Portal -> Azure Cosmos DB account -> Keys
+        public const string k_PrimaryKey = "ciLoAnNhBIt9s9Hg92ThOm80SkGyvfHnG2cccLCo5nm7pMsdbPtqaaEDXQbSL3syItutMIkzwMDpSdnZktjqdQ=="; // Azure Portal -> Azure Cosmos DB account -> Keys
+        public const string k_DataBaseID = "ToDoList";
+        public const string k_CollectionID = "Items";
         public DocumentClient client;
 
         public DatabaseHandler()
