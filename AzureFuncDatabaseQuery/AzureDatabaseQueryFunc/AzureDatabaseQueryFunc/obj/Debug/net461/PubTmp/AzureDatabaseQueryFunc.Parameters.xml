@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<parameters>
+  <parameter name="IIS Web Application Name" description="" value="SpatialEnrichmentDatabaseQueryFunc" tags="IisApp">
+    <parameterEntry kind="ProviderPath" scope="IisApp" match="^C:\\Users\\user\\Documents\\Asaf\\AzureFuncDatabaseQuery\\AzureDatabaseQueryFunc\\AzureDatabaseQueryFunc\\obj\\Debug\\net461\\PubTmp\\Out\\$" />
+  </parameter>
+</parameters>

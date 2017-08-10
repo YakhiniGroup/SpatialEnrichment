@@ -51,3 +51,8 @@ C:\Users\USER\Desktop\תיקייה זמנית של אסף\MapIDCProject\AzureFun
 C:\Users\USER\Desktop\תיקייה זמנית של אסף\MapIDCProject\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.dll
 C:\Users\USER\Desktop\תיקייה זמנית של אסף\MapIDCProject\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.pdb
 C:\Users\USER\Desktop\תיקייה זמנית של אסף\MapIDCProject\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\bin\Debug\net461\SpatialEnrichmentWrapper.dll
+C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.csprojResolveAssemblyReference.cache
+C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.csproj.CoreCompileInputs.cache
+C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.AssemblyInfo.cs
+C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.dll
+C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\obj\Debug\net461\SpatialEnrichmnet.pdb

@@ -21,6 +21,9 @@
     <Reference Include="SpatialEnrichmentWrapper">
       <HintPath>..\..\..\..\workspace\SpatialEnrichmentWrapper\bin\Debug\SpatialEnrichmentWrapper.dll</HintPath>
     </Reference>
+    <Reference Include="SpatialEnrichmnet">
+      <HintPath>bin\Debug\net461\SpatialEnrichmnet.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">

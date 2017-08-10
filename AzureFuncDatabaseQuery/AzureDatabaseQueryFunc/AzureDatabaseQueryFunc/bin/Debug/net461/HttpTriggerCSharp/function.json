@@ -1,0 +1,21 @@
+{
+  "bindings": [
+    {
+      "type": "httpTrigger",
+      "methods": [
+        "post"
+      ],
+      "authLevel": "anonymous",
+      "direction": "in",
+      "name": "req"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    }
+  ],
+  "disabled": false,
+  "scriptFile": "..\\AzureDatabaseQueryFunc.dll",
+  "entryPoint": "DatabaseProgressQuery.Function.Run"
+}
