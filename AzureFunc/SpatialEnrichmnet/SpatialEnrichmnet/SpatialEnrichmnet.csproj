@@ -20,6 +20,15 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
+<<<<<<< HEAD
+=======
+    <Reference Include="SpatialEnrichmentWrapper">
+      <HintPath>..\..\..\..\workspace\SpatialEnrichmentWrapper\bin\Debug\SpatialEnrichmentWrapper.dll</HintPath>
+    </Reference>
+    <Reference Include="SpatialEnrichmnet">
+      <HintPath>bin\Debug\net461\SpatialEnrichmnet.dll</HintPath>
+    </Reference>
+>>>>>>> 27b8d3291b9b986a7f7525f99b7756d2221fcb32
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
