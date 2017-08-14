@@ -21,3 +21,6 @@ AzureFunc/SpatialEnrichmnet/SpatialEnrichmentFunc/obj/
 AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/bin/
 AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/obj/
 SpatialEnrichmentWrapper/obj/
+.vs/
+AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/bin/
+AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/obj/
