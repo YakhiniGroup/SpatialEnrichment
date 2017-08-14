@@ -109,7 +109,7 @@ namespace SpatialEnrichmentWrapper
             return denom / numer;
         }
 
-        private double Norm()
+        public double Norm()
         {
             return Math.Sqrt(X * X + Y * Y + Z * Z);
         }
@@ -117,7 +117,11 @@ namespace SpatialEnrichmentWrapper
         public double CrossProduct(Coordinate3D other)
         {
             throw new NotImplementedException();
-            return (this.X * other.Y - this.Y * other.X);
+        }
+
+        public Coordinate3D ElementwiseProduct(Coordinate3D other)
+        {
+            return new Coordinate3D(this.X * other.X, this.Y * other.Y, this.Z * other.Z);
         }
 
         public double EuclideanDistance(ICoordinate other)
@@ -165,12 +169,8 @@ namespace SpatialEnrichmentWrapper
 
         public Coordinate3D ProjectOnto(Coordinate3D coord)
         {
-            var norm = Math.Sqrt(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z);
-            var uNormal = Normal.Scale(1.0 / norm);
+            var uNormal = GetUnitNormalVector();
             return coord - uNormal.Scale((coord - MidPoint).DotProduct(uNormal));
-            //new Coordinate3D(coord.X * MidPoint.X, coord.Y * MidPoint.Y, coord.Z * MidPoint.Z);
-            //var dist = v.DotProduct(uNormal);
-            //return coord - uNormal.Scale(dist);
         }
 
         public List<Coordinate> ProjectOntoAndRotate(List<Coordinate3D> coords, out PrincipalComponentAnalysis pca)
@@ -187,6 +187,31 @@ namespace SpatialEnrichmentWrapper
             var transformedData = pca.Transform(sourceMatrix);
             return transformedData.Select(p => new Coordinate(p[0], p[1])).ToList();
         }
+
+        public Coordinate3D GetUnitNormalVector()
+        {
+            var norm = Math.Sqrt(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z);
+            var uNormal = Normal.Scale(1.0 / norm);
+            return uNormal;
+        }
+    }
+
+    public static class Planehelpers {
+        public static Line PlaneIntersection(this Plane first, Plane second)
+        {
+            var firstU = first.GetUnitNormalVector();
+            var secondU = second.GetUnitNormalVector();
+            if (Math.Abs(firstU.DotProduct(secondU)) < StaticConfigParams.TOLERANCE) throw new Exception("Parallel planes intersected in code.");
+            var linedirection = firstU.ElementwiseProduct(secondU);
+            linedirection = linedirection.Scale(1.0 / linedirection.Norm());
+
+            //attempt to find a point intersecting the z-plane
+            var x = linedirection.X;
+            var y = linedirection.Y;
+
+            return null;
+        }
+
     }
 
 }

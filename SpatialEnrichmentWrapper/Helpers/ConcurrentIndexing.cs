@@ -54,9 +54,9 @@ namespace SpatialEnrichment.Helpers
             set { map.AddOrUpdate(obj, t => value, (a, b) => value); }
         }
 
-        public T this[long index]
+        public T this[long idx]
         {
-            get { return invmap[index]; }
+            get { return invmap[idx]; }
         }
 
         public IEnumerator<KeyValuePair<long, T>> GetEnumerator()

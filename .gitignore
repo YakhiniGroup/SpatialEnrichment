@@ -16,3 +16,8 @@ UsageExampleProject/obj/
 packages/
 .vs/slnx.sqlite
 SpatialEnrichmentWrapper/bin/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmentFunc/bin/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmentFunc/obj/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/bin/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/obj/
+SpatialEnrichmentWrapper/obj/

@@ -137,7 +137,7 @@ namespace SpatialEnrichment.Helpers
             var currHG = 1.0;
             var currHGT = 1.0;
             var mHGT = 1.1;
-            var index = 0;
+            var currIndex = 0;
             var k = 0;
             //var OptDist = Ones;
             var OptDistVec = new int[Ones+1];
@@ -153,7 +153,7 @@ namespace SpatialEnrichment.Helpers
                     //currHGT = ScoreMap[currHG];
                     if (currHGT < mHGT)
                     {
-                        index = n;
+                        currIndex = n;
                         mHGT = currHGT;
                     }
                     //check distance to optimum
@@ -193,7 +193,7 @@ namespace SpatialEnrichment.Helpers
                     break;
             }
 
-            return new Tuple<double, int, int[]>(pval, index + 1, OptDistVec);
+            return new Tuple<double, int, int[]>(pval, currIndex + 1, OptDistVec);
         }
 
         #region mHG privates
