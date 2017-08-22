@@ -102,7 +102,7 @@ namespace SpatialEnrichment
                             Lines.Add(line);
                         }
                     }
-            Console.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
+            Config.Log.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
             EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
             DepletedLines = new bool[Lines.Count];
             Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
@@ -182,9 +182,9 @@ namespace SpatialEnrichment
             //each consecutive intersection pair defines a wall of a cell
             //the coordinate overlap of walls identifies the cell border
             //identifying cycles in the graph induced by coordinates as nodes, and edges as consecutiveness yields cells.
-            Console.WriteLine(@"Building intersection data.");
+            Config.Log.WriteLine(@"Building intersection data.");
             var ds = BuildIntersectionsDatastruct(Lines);
-            Console.WriteLine(@"Traversing graph.");
+            Config.Log.WriteLine(@"Traversing graph.");
             
             var traverseGraphFindCycles = SearchCycles(ds);
             var computeMHGtsk = ComputeCellMHG();
@@ -242,7 +242,7 @@ namespace SpatialEnrichment
                 }
                 hull.RemoveAt(hull.Count - 1);
                 ConvexHull = hull;
-                Console.WriteLine(@"Done computing convex hull.");
+                Config.Log.WriteLine(@"Done computing convex hull.");
             });
         }
 
@@ -606,7 +606,7 @@ namespace SpatialEnrichment
                 }
                 Task.WaitAll(tskLst.ToArray());
                 tskList.Clear();
-                Console.WriteLine("Finished traversal, resampling from leftovers.");
+                Config.Log.WriteLine("Finished traversal, resampling from leftovers.");
                 var unseenCells = cmesh.GetUncoveredSegments().AsParallel()
                     .Select(seg => CoverCellFromSegment(cmesh, seg.Item1, seg.Item2))
                     .Where(t => t != null).Take(numStartCoords).ToList();
@@ -693,16 +693,22 @@ namespace SpatialEnrichment
                 cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
             cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
             cell.SetId(Interlocked.Increment(ref cellCount));
+            string outstring = string.Empty;
             if (cell.MyId % 100 == 0)
             {
                 var numcovered = (int) (sortLL.segmentCount / 8);
                 var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / Config.Cellcount
-                Console.Write("\r\r\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
+                outstring = string.Format(@"Cell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
                     percentCovered, cell.CenterOfMass.ToString("0.000"),
-                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, 
+                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT,
                     new TimeSpan(0, 0, (int)((EstimatedCellCount - numcovered) / (numcovered / sw.Elapsed.TotalSeconds))));
+                Console.Write("\r\r\r\r\r\r\r\r"+outstring);
                 if (!sw.IsRunning)
                     sw.Start();
+            }
+            if (cell.MyId % 1000 == 0)
+            {
+                Config.Log.WriteLine((int)((sortLL.segmentCount / 8) / EstimatedCellCount), outstring);
             }
             if (StaticConfigParams.WriteToCSV)
                 Task.Run(() => cell.SaveToCSV($@"Cells\CellHit{cell.MyId}_{StaticConfigParams.filenamesuffix}.csv"));

@@ -11,5 +11,6 @@ namespace SpatialEnrichment
         public string Actions { get; set; }
         public string SkipSlack { get; set; }
         public string Threshold { get; set; }
+        public string ExecutionTokenId { get; set; }
     }
 }

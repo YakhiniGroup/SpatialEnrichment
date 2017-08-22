@@ -62,6 +62,7 @@ namespace SpatialEnrichment
             parameters.Add("Action", inputParams.Actions);
             parameters.Add("SKIP_SLACK", inputParams.SkipSlack);
             parameters.Add("SIGNIFICANCE_THRESHOLD", inputParams.Threshold);
+            parameters.Add("ExecutionTokenId", inputParams.ExecutionTokenId);
 
             return parameters;
         }

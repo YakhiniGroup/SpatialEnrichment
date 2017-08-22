@@ -63,7 +63,7 @@ namespace SpatialEnrichmentWrapper
                 idx++;
                 if (StaticConfigParams.WriteToCSV)
                     Generics.SaveToCSV(plane, $@"Planes\plane{idx}.csv", true);
-                Console.WriteLine("Selected plane {0}/{1} at distance {2}",idx, numPlanes, currPlane.Key);
+                Config.Log.WriteLine("Selected plane {0}/{1} at distance {2}",idx, numPlanes, currPlane.Key);
                 var subProblemIn2D = plane.ProjectOntoAndRotate(coordinates, out PrincipalComponentAnalysis pca);
                 pca.NumberOfOutputs = 3; //project back to 3D
                 //Solve 2D problem

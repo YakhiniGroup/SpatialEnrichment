@@ -43,6 +43,7 @@ namespace SpatialEnrichmentWrapper
     public class ConfigParams
     {
         //configuration parameters
+        public LogWrapper Log;
         public int SKIP_SLACK = 0; // gradient skipping slack parameter. negative yields more cells.
         public double SIGNIFICANCE_THRESHOLD = 0.05;
         public int GetTopKResults = 10;
@@ -64,21 +65,28 @@ namespace SpatialEnrichmentWrapper
         public int computedMHGs;
         public Stopwatch timer = new Stopwatch();
 
-        public ConfigParams() { }
+        public ConfigParams()
+        {
+            this.Log = new LogWrapper();
+        }
+
         public ConfigParams(Dictionary<string, string> fromDict)
         {
             //TODO: improve this CTOR - exceptions
             string actionValue;
             string skipSlackValue;
             string thresholdValue;
+            string executionTokenIdValue;
 
             fromDict.TryGetValue("Action", out actionValue);
             fromDict.TryGetValue("SKIP_SLACK", out skipSlackValue);
             fromDict.TryGetValue("SIGNIFICANCE_THRESHOLD", out thresholdValue);
+            fromDict.TryGetValue("ExecutionTokenId", out executionTokenIdValue);
 
             Enum.TryParse(actionValue, out this.ActionList);
             int.TryParse(skipSlackValue, out this.SKIP_SLACK);
             double.TryParse(thresholdValue, out this.SIGNIFICANCE_THRESHOLD);
+            this.Log = new LogWrapper(executionTokenIdValue);
         }
     }
 }
