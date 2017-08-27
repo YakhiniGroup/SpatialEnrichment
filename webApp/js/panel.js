@@ -11,14 +11,14 @@ var panel = {
 	},
 	refreshPanel : function(){
 		//TODO: remove all il's 
-		$('#panel .dropdown-1 ul').empty();
+		$('#panel .selectCountryDropdown ul').empty();
 		$('#panel .searchSpotList').empty();
-		$('#panel .dropdown-2 ul').empty();
+		$('#panel .selectDataSetDropdown ul').empty();
 		panel.init();
 	},
 	initCountrySelection : function(){
 		maps.countries.forEach(function(country){
-			$('#panel .dropdown-1 ul').append('<li><a href="#">' + country.countryName +'</li>');
+			$('#panel .selectCountryDropdown ul').append('<li><a href="#">' + country.countryName +'</li>');
 		});
 	},
 	initSpots : function(){
@@ -39,7 +39,7 @@ var panel = {
 		for (var i = 0; i < maps.countries.length; i++){
 			var setOfSpotSets = maps.countries[i].setOfSpotSets;
 			for (var j = 0; j < setOfSpotSets.length; j++){
-				$('#panel .dropdown-2 ul').append('<li class="spotSet"><a href="#">' + setOfSpotSets[j].name +'</li>');
+				$('#panel .selectDataSetDropdown ul').append('<li class="spotSet"><a href="#">' + setOfSpotSets[j].name +'</li>');
 			}
 		}
 		panel.cleanSpotSetsFromPanel();	
@@ -60,7 +60,7 @@ var panel = {
 			var listElement = list[i].childNodes[0];
 			for(var j = 0; j < spots.length; j++){
 				if(spots[j].name == listElement.textContent){
-					list[i].style.display="";
+					list[i].style.display= "block";
 					found = true;
 					break;
 				}
@@ -79,7 +79,7 @@ var panel = {
 			var listElement = list[i].childNodes[0];
 			for(var j = 0; j < setOfSpotSets.length; j++){
 				if(setOfSpotSets[j].name == listElement.textContent){
-					list[i].style.display="";
+					list[i].style.display="block";
 					found = true;
 					break;
 				}
@@ -154,7 +154,7 @@ var panel = {
 	        if (nameOfSpot.toUpperCase().indexOf(filter) > -1) {
 	            for(j = 0; j < panel.spotSet.spots.length; j++){
 	        		if(panel.spotSet.spots[j].name == nameOfSpot)
-	        			li[i].style.display = "";
+	        			li[i].style.display = "block";
 	        	}
 	        } else {
 	            li[i].style.display = "none";
@@ -172,13 +172,69 @@ var panel = {
 		}
 	},
 	activateLoader : function(){
-		$("#loading").css("display","block");
+		panel.resetLoader();
+		$("#progressModal").modal({
+			  backdrop: 'static',
+  			  keyboard: false
+		});
+	},
+	resetLoader : function(){
+		panel.assignValueToLoader(0);
+		panel.assignMessageToLoader("Starting Process..")
 	},
 	exitLoader : function(){
-		$("#loading").css("display","none");
+		$("#progressModal").modal("hide");
+	},
+	updateLoader : function(queryId){
+		// ajax call to azure function
+		$.ajax({
+			url:"https://spatialenrichmentdatabasequeryfunc.azurewebsites.net/api/HttpTriggerCSharp",
+			type: 'POST',
+			contentType: 'application/json',
+			success: function(json){
+				var value = json.Value;
+				var message = json.Message;
+				panel.assignValueToLoader(value);
+				panel.assignMessageToLoader(message);
+				if(JSONobject.isProcessedByServer){
+					//wait 3 second, then update again
+					setTimeout(function(){panel.updateLoader(queryId);}, 3000);
+				}
+				else{
+					panel.exitLoader();
+				}
+			},
+			error : function(xhr, status, error){
+				alert("Error : Failure connecting to server\r\n" + "Status : " + xhr.status + "\r\n" + "Message: " + error);
+				panel.exitLoader();
+			},
+			data: JSON.stringify({id : queryId})
+		});
+		//update progress bar
+		// var value = $("#progressModal .progress-bar").attr("aria-valuenow");
+		// var newValue = parseInt(value) + 5;
+		// panel.assignValueToLoader(newValue);
+		// if(JSONobject.isProcessedByServer){
+		// 	//wait 3 second, then update again
+		// 	setTimeout(function(){panel.updateLoader(queryId);}, 3000);
+		// }
+		// else{
+		// 	// server finshed progress
+		// 	panel.exitLoader();
+		// }
+	},
+	assignValueToLoader : function(newValue){
+		if(newValue <= 100 && newValue >=0){
+			$("#progressModal .progress-bar").attr("aria-valuenow",  newValue);
+			$("#progressModal .progress-bar").css("width" , newValue + "%");
+			$("#progressModal .progress-bar").text(newValue + "%");
+		}
+	},
+	assignMessageToLoader : function(message){
+		$(".progress-message").text(message);
 	},
 	initEvents : function(){
-		$("#panel .dropdown-1 li").click(function(){
+		$("#panel .selectCountryDropdown li").click(function(){
 			var country = maps.returnCountryObject($(this).text());
 			maps.flyTo(country.lon, country.lat, country.zoom);
 			panel.displayCountrySetOfSpotSets(country);
@@ -193,10 +249,10 @@ var panel = {
 			var marker = document.getElementById(idOfBox);
 			var spot = maps.returnSpotObject(idOfBox);
 			marker.style.backgroundColor = colorOfBox;
-			spot.info = (colorOfBox == "rgb(0, 0, 255)") ? 1 : 0; 
+			spot.info = (colorOfBox == "rgb(0, 0, 255)") ? 0 : 1; 
 			JSONobject.reInitObject();
 		});
-		$("#panel .dropdown-2 li").click(function(){
+		$("#panel .selectDataSetDropdown li").click(function(){
 			var spotSet = maps.returnSpotSetObject($(this).text());
 			panel.displaySpotSetSpots(spotSet);
 			maps.showSpotsOnMapForGivenSpotSet(spotSet);
@@ -216,11 +272,25 @@ var panel = {
 		});
 		$("#selectSpotSearchBar").click(function(){
 			$(".searchSpotList").css("display" ,"");
-		})
+		});
 		$("#selectSpotSearchBar").keyup(function(){
 			panel.updateSelectSpotSearchBar();
 			$(".searchSpotList").css("display" ,"");
-		})
+		});
+        $("#configParamsForm_Threshold_Ranger, #configParamsForm_Threshold_Number").change(function(event){
+        	var val = $(this).val();
+			var max = $(this).attr("max");
+			var min = $(this).attr("min");
+			if(val > max || val < min){
+				event.preventDefault();
+				return;
+			}
+        	$("#configParamsForm_Threshold_Ranger").val(val);
+        	$("#configParamsForm_Threshold_Number").val(val);
+        });
+        $("#configParamsForm input, #configParamsForm select").change(function(){
+			JSONobject.initParams();
+        });
 	}
 }
 
@@ -279,7 +349,7 @@ var uploadDataSetPanel = {
 		var pattCsv = /^text\/csv/;
 
 		return pattCsv.test(type)
-	},
+	}
 }
 
 

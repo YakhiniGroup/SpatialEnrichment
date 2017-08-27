@@ -54,15 +54,6 @@ var appEvents = {
 	}
 }
 
-
-window.onclick = function(event) {
-	var spotList = document.getElementsByClassName("searchSpotList");
-	var searchBar = document.getElementById("selectSpotSearchBar");
-    if(event.target != spotList[0] && event.target != searchBar){
-	    $(".searchSpotList").css("display" ,"none");
-    }
-}
-
 function ajaxCall(URL, callback, arg1, arg2, arg3){
     $.ajax({
         url: URL,

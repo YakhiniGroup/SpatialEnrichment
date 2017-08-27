@@ -15,6 +15,7 @@ var maps = {
 		});
 		maps.addAllSpots();
 		maps.addPreloadedSets();
+		maps.addPreloadedLiveDataSets();
 	},
 	initCountries : function(){
 		maps.countries = new Array();
@@ -26,12 +27,33 @@ var maps = {
 	addPreloadedSets : function(){
 		var unitedStates = maps.returnCountryObject("United States");
 		var africa = maps.returnCountryObject("Africa");
-		ajaxCall("data/earthquakes.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "Earthquakes 1956 - 2016 (Mag 4.5 +)", unitedStates);
 		ajaxCall("data/employment.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "2016 - 2017 Employment rate increase y/n", unitedStates);
 		ajaxCall("data/elections.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "USA 2016 Elections", unitedStates);
 		ajaxCall("data/terror.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "US state capitals terror attacks y/n 2015 - 2015", unitedStates);
 		ajaxCall("data/zika.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "Active Zika Virus Transmission", africa);
 		ajaxCall("data/earthquakes.csv", parser.csvTextToJSON, panel.addDateSetToPanel, "Earthquakes 1956 - 2016 (Mag 4.5 +)", unitedStates);
+
+	},
+	createTelOFunSetOfSpots : function(json){
+		return parser.JSONTelOFunToSetOfSpots(json);
+	},
+	addTelOFunSet : function(){
+		$.ajax({
+	        url: "https://api.tel-aviv.gov.il/telofan/Stations",
+	        type: 'GET',
+	        success: function(json){
+	        	var israel = maps.returnCountryObject("Israel");
+				var setOfSpots = maps.createTelOFunSetOfSpots(json);
+				var name = "Tel-O-Fun (Live)"
+				panel.addDateSetToPanel(setOfSpots, name, israel, false);
+	        },
+	        error: function(err){
+	        	console.log("Error: Failed to load Tel-O-Fun Live data set");
+	        }
+    	});
+	},
+	addPreloadedLiveDataSets : function(){
+		maps.addTelOFunSet();
 	},
 	setCenter : function(lon, lat){
 		maps.map.setCenter([lon, lat]);
@@ -139,15 +161,25 @@ var maps = {
 		el.addEventListener("mouseleave", function(){
 		  	panel.removeSpotTag();
 		});
+		el.addEventListener("click", function(){
+			var idOfMarker = $(this).attr("id");
+			var spot = maps.returnSpotObject(idOfMarker);
+			var newColorOfMarker = $(this).css("background-color") == "rgb(0, 0, 255)" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)"; // if this color is blue then make it red
+			$(this).css("background-color", newColorOfMarker);
+			spot.info = (newColorOfMarker == "rgb(0, 0, 255)") ? 0 : 1; // is this new color blue? (blue = 0 , red = 1)
+			panel.removeSpotTag();
+			JSONobject.reInitObject();
+		});
 		new mapboxgl.Marker(el).setLngLat([spot.lon, spot.lat]).addTo(maps.map);
 	},
 	createSpatialmHGResultMarker : function(SpatialmHGResultSpot){
-		var size = (SpatialmHGResultSpot.pValue * 10 + 10) + "px";
+		var size = (SpatialmHGResultSpot.pValue * 5 + 5) + "px";
 		var el = document.createElement('div');
 		el.className = 'spatialmHGResultMarker';
-		el.style.backgroundColor = 'green';
+		el.style.backgroundColor = 'rgb(92,184,92)';
 		el.style.height = size;
 		el.style.width = size;
+		el.style.border = "white solid 1px";
 		el.style.borderRadius = "50%";
 		el.style.visibility = "visible";
 		el.addEventListener("mouseover", function(){
@@ -181,5 +213,5 @@ var maps = {
 			listOfMarkers[i].style.visibility = "hidden";
 		}
 		$(".spatialmHGResultMarker").remove();
-	}
+	}, 
 };

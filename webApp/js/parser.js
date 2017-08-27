@@ -41,15 +41,37 @@ var parser = {
 			callback(result, dataSetName, countryObject, isNew);
 		}  
 	},
-	JSONToSpatialmHGResultArray : function(jsonOfSpatialmHGResults){
+	JSONToSpatialmHGResultArray : function(result){
 		var spatialmHGResultArray = [];
-		var spots = jsonOfSpatialmHGResults["Spots"];
+		var spots = result["SpatialmHGSpots"];
 		for (var i = 0; i < spots.length; i++){
-			var test = new SpatialmHGResult(spots[i]["Lon"], spots[i]["Lat"], spots[i]["Name"], spots[i]["Info"],);
+			var test = new SpatialmHGResult(spots[i]["Lon"], spots[i]["Lat"], spots[i]["MHGthreshold"], spots[i]["Pvalue"],);
 			spatialmHGResultArray.push(test);
 		}
 
 		return spatialmHGResultArray;
+	},
+	JSONTelOFunToSetOfSpots : function(json){
+		var features = json["features"];
+		var set = [];
+		for(var i = 0; i < features.length; i++){
+			var feature = features[i];
+			var station = feature["attributes"];
+			var location = feature["geometry"];
+			var lon = location["x"];
+			var lat = location["y"];
+			var name = station["tachana_id"];
+			var info;
+
+			if(parseInt(station["free_bikes"]) > 0){
+				info = 0;
+			}
+			else{
+				info = 1;
+			}
+			set.push(new spot(name, lon, lat, info, true));
+		}
+		return set;
 	}
 }
 
