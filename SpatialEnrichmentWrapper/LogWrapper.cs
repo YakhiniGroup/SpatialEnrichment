@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,10 +11,22 @@ namespace SpatialEnrichmentWrapper
     {
         private string ExecutionTokenId = "";
         private DatabaseProgressQuery.DatabaseHandler db;
+        private BlockingCollection<Tuple<string,int>> messageQueue;
+
         public LogWrapper(string token = "")
         {
             this.ExecutionTokenId = token;
             db = new DatabaseProgressQuery.DatabaseHandler();
+            messageQueue = new BlockingCollection<Tuple<string, int>>();
+            if (this.ExecutionTokenId == "") return;
+            var q = new DatabaseProgressQuery.Query()
+            {
+                Id = ExecutionTokenId,
+                Message = "Initialized Log.",
+                Value = 0
+            };
+            db.CreateQueryDocumentIfNotExistsAsync(q);
+            UpdateDBTask();
         }
 
         public void WriteLine(string format, params object[] values)
@@ -26,18 +39,35 @@ namespace SpatialEnrichmentWrapper
             var str = string.Format(format, values);
             Console.WriteLine(str);
             if (this.ExecutionTokenId == "") return;
+            messageQueue.Add(new Tuple<string, int>(str, progress));
+        }
+
+        ~LogWrapper()
+        {
+            messageQueue.CompleteAdding();
+        }
+
+        private void UpdateDBTask()
+        {
             Task.Run(() =>
             {
-                var oldQ = db.SearchForQuery(ExecutionTokenId);
-                var q = new DatabaseProgressQuery.Query()
+                //var oldQ = db.SearchForQuery(ExecutionTokenId);
+                foreach(var msg in messageQueue.GetConsumingEnumerable())
                 {
-                    Id = ExecutionTokenId,
-                    Message = str,
-                    Value = progress >= 0 ? progress : oldQ.Value
-                };
-                if (oldQ != null)
-                    db.ReplaceQueryDocumentAsync(q, oldQ);
+                    var delTask = db.DeleteQueryDocumentAsync(ExecutionTokenId);
+                    var q = new DatabaseProgressQuery.Query()
+                    {
+                        Id = ExecutionTokenId,
+                        Message = msg.Item1,
+                        Value = msg.Item2
+                    };
+                    delTask.Wait();
+                    db.CreateQueryDocumentIfNotExistsAsync(q);
+                    //if (oldQ != null)
+                    //    db.ReplaceQueryDocumentAsync(q, oldQ);
+                }
             });
+
         }
     }
 }

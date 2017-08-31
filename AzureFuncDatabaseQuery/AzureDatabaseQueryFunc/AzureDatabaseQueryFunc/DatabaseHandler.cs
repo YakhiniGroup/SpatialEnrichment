@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Net;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Newtonsoft.Json;
 
 namespace DatabaseProgressQuery
 {

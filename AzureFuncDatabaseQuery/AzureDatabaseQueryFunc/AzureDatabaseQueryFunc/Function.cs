@@ -10,7 +10,6 @@ using Microsoft.Azure.WebJobs.Host;
 
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Newtonsoft.Json;
 
 namespace DatabaseProgressQuery
 {

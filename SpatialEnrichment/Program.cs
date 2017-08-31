@@ -21,7 +21,7 @@ namespace SpatialEnrichment
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
             var numcoords = 7;
-            Config = new ConfigParams();
+            Config = new ConfigParams("0");
             if(Config.SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", Config.SKIP_SLACK);
             if (StaticConfigParams.WriteToCSV)

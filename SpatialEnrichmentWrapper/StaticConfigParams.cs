@@ -65,9 +65,9 @@ namespace SpatialEnrichmentWrapper
         public int computedMHGs;
         public Stopwatch timer = new Stopwatch();
 
-        public ConfigParams()
+        public ConfigParams(string tokenId = "")
         {
-            this.Log = new LogWrapper();
+            this.Log = new LogWrapper(tokenId);
         }
 
         public ConfigParams(Dictionary<string, string> fromDict)

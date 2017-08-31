@@ -8,11 +8,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{575865D0-F34F-4E69-B219-8BEBEB61B61E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpatialEnrichmentWrapper", "SpatialEnrichmentWrapper\SpatialEnrichmentWrapper.csproj", "{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}"
-	ProjectSection(ProjectDependencies) = postProject
-		{2587830B-DE37-4F2E-9D4C-9296C1732A0D} = {2587830B-DE37-4F2E-9D4C-9296C1732A0D}
-	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AzureDbQueryFunc", "AzureFuncDatabaseQuery\AzureDatabaseQueryFunc\AzureDatabaseQueryFunc\AzureDbQueryFunc.csproj", "{2587830B-DE37-4F2E-9D4C-9296C1732A0D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpatialEnrichmentFunc", "AzureFunc\SpatialEnrichmnet\SpatialEnrichmentFunc\SpatialEnrichmentFunc.csproj", "{A960ED84-B1E4-41FE-AD00-B802C84017D8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AzureDatabaseQueryFunc", "AzureFuncDatabaseQuery\AzureDatabaseQueryFunc\AzureDatabaseQueryFunc\AzureDatabaseQueryFunc.csproj", "{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{CEC9C869-963E-4F7A-A9D5-A75869736819}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,10 +29,18 @@ Global
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2587830B-DE37-4F2E-9D4C-9296C1732A0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2587830B-DE37-4F2E-9D4C-9296C1732A0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2587830B-DE37-4F2E-9D4C-9296C1732A0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2587830B-DE37-4F2E-9D4C-9296C1732A0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

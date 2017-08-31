@@ -24,3 +24,6 @@ SpatialEnrichmentWrapper/obj/
 .vs/
 AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/bin/
 AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/obj/
+UnitTests/bin/Debug/UnitTests.pdb
+UnitTests/bin/
+UnitTests/obj/
