@@ -12,7 +12,6 @@ namespace SpatialEnrichmentWrapper
         private string ExecutionTokenId = "";
         private DatabaseProgressQuery.DatabaseHandler db;
         private BlockingCollection<Tuple<string,int>> messageQueue;
-
         public LogWrapper(string token = "")
         {
             this.ExecutionTokenId = token;
@@ -25,8 +24,8 @@ namespace SpatialEnrichmentWrapper
                 Message = "Initialized Log.",
                 Value = 0
             };
-            db.CreateQueryDocumentIfNotExistsAsync(q);
-            UpdateDBTask();
+            var initTask = db.CreateQueryDocumentIfNotExistsAsync(q);
+            UpdateDBTask(initTask);
         }
 
         public void WriteLine(string format, params object[] values)
@@ -47,13 +46,14 @@ namespace SpatialEnrichmentWrapper
             messageQueue.CompleteAdding();
         }
 
-        private void UpdateDBTask()
+        private void UpdateDBTask(Task prevTask)
         {
             Task.Run(() =>
             {
                 //var oldQ = db.SearchForQuery(ExecutionTokenId);
-                foreach(var msg in messageQueue.GetConsumingEnumerable())
+                foreach (var msg in messageQueue.GetConsumingEnumerable())
                 {
+                    prevTask.Wait();
                     var delTask = db.DeleteQueryDocumentAsync(ExecutionTokenId);
                     var q = new DatabaseProgressQuery.Query()
                     {
@@ -62,7 +62,7 @@ namespace SpatialEnrichmentWrapper
                         Value = msg.Item2
                     };
                     delTask.Wait();
-                    db.CreateQueryDocumentIfNotExistsAsync(q);
+                    prevTask = db.CreateQueryDocumentIfNotExistsAsync(q);
                     //if (oldQ != null)
                     //    db.ReplaceQueryDocumentAsync(q, oldQ);
                 }
