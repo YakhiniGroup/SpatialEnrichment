@@ -13,15 +13,23 @@ using SpatialEnrichmentWrapper;
 
 namespace SpatialEnrichment
 {
-    class Program
+    public class Program
     {
         static ConfigParams Config;
         static void Main(string[] args)
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 7;
-            Config = new ConfigParams("0");
+            var numcoords = 300;
+            Config = new ConfigParams("");
+
+            if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
+            {
+                Console.WriteLine(@"Running pivot comparison experiment");
+                Experiments.CompareExhaustiveWithPivots();
+                return;
+            }
+
             if(Config.SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", Config.SKIP_SLACK);
             if (StaticConfigParams.WriteToCSV)
@@ -138,7 +146,7 @@ namespace SpatialEnrichment
             }
         }
 
-        private static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
+        public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
         {
             Console.WriteLine(@"Covering original points with mHG.");
             int ptcount = 0;
@@ -166,7 +174,7 @@ namespace SpatialEnrichment
             wrtr.Wait();
         }
 
-        private static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels)
+        public static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels, bool save=true)
         {
             if ((Config.ActionList & Actions.Instance_Uniform) != 0)
             {
@@ -200,8 +208,9 @@ namespace SpatialEnrichment
                 for (var i = 0; i < numcoords; i++)
                     labels.Add(posIds.Contains(i));
             }
-            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
-                $@"coords_{StaticConfigParams.filenamesuffix}.csv");
+            if(save)
+                Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
+                    $@"coords_{StaticConfigParams.filenamesuffix}.csv");
         }
 
         private static void PlantEnrichmentAndSave(int numcoords, List<Coordinate> coordinates, Random rnd, List<bool> labels)

@@ -22,8 +22,8 @@ namespace SpatialEnrichment
         {
             if (double.IsNaN(x) || double.IsNaN(y) || double.IsInfinity(x) || double.IsInfinity(y))
                 throw new ApplicationException("Bad coordinate values");
-            X = x;
-            Y = y;
+            X = x>0 ? Math.Min(x, int.MaxValue / 1000.0) : Math.Max(x, int.MinValue / 1000.0);
+            Y = y>0 ? Math.Min(y, int.MaxValue / 1000.0) : Math.Max(y, int.MinValue / 1000.0);
         }
 
         public double GetDimension(int dim)
@@ -46,7 +46,7 @@ namespace SpatialEnrichment
 
         public override int GetHashCode()
         {
-            return Convert.ToInt32(31*X + 17*Y);
+            return Convert.ToInt32(31 * X + 17 * Y);
         }
 
         public override string ToString()
@@ -149,17 +149,17 @@ namespace SpatialEnrichment
         private static int[][] LineIdsMap;
 
         public double Slope, Intercept;
-        public Line(double a, double b, bool isCounted=true)
+        public Line(double slope, double intercept, bool isCounted=true)
         {
             if (double.IsNaN(Slope) || double.IsNaN(Intercept) || double.IsInfinity(Slope) || double.IsInfinity(Intercept))
                 throw new ApplicationException("Bad line values");
-            if (Math.Abs(a) < double.Epsilon)
+            if (Math.Abs(slope) < double.Epsilon)
             {
                 Console.WriteLine(@"Line with slope 0 detected, adding epsilon.");
-                a += (StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE;
+                slope += (StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE;
             }
-            Slope = a;
-            Intercept = b;
+            Slope = slope;
+            Intercept = intercept;
             if (isCounted)
                 Id = Count++;
         }

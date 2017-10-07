@@ -15,9 +15,9 @@ namespace SpatialEnrichmentWrapper
         public LogWrapper(string token = "")
         {
             this.ExecutionTokenId = token;
+            if (this.ExecutionTokenId == "") return;
             db = new DatabaseProgressQuery.DatabaseHandler();
             messageQueue = new BlockingCollection<Tuple<string, int>>();
-            if (this.ExecutionTokenId == "") return;
             var q = new DatabaseProgressQuery.Query()
             {
                 Id = ExecutionTokenId,
@@ -43,7 +43,7 @@ namespace SpatialEnrichmentWrapper
 
         ~LogWrapper()
         {
-            messageQueue.CompleteAdding();
+            messageQueue?.CompleteAdding();
         }
 
         private void UpdateDBTask(Task prevTask)

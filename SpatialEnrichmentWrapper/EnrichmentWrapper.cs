@@ -141,6 +141,23 @@ namespace SpatialEnrichmentWrapper
             Tesselation.Reset();
             return topResults.Select(t => new SpatialmHGResult(t)).ToList();
         }
+
+        public List<ISpatialmHGResult> mHGPivotWrapper(List<Tuple<double, double, bool>> coordinates, List<Tuple<double,double>> pivots = null)
+        {
+            var cpivots = pivots == null ? coordinates.Select(c => new Coordinate(c.Item1, c.Item2)).ToList() : pivots.Select(c => new Coordinate(c.Item1, c.Item2)).ToList();
+            var labeledCoords = coordinates.Select(c => new { Coord = new Coordinate(c.Item1, c.Item2), Label = c.Item3 }).ToList();
+            InitializeMHG(labeledCoords.Select(c=>c.Label).ToList());
+            var results = new List<SpatialmHGResult>();
+            Parallel.ForEach(cpivots, piv =>
+            {
+                var ordDat = labeledCoords.OrderBy(c => piv.EuclideanDistance(c.Coord)).ToList();
+                var vec = ordDat.Select(c => c.Label).ToArray();
+                var res = mHGJumper.minimumHypergeometric(vec);
+                results.Add(new SpatialmHGResult(res.Item1, res.Item2, piv));
+            });
+            return results.OrderBy(r=>r.pvalue).Take(Config.GetTopKResults).Cast<ISpatialmHGResult>().ToList();
+        }
+
     }
 
     /// <summary>
@@ -155,6 +172,15 @@ namespace SpatialEnrichmentWrapper
         public int mHGthreshold { get; private set; } //the number of original labeled points within the enrichment "sphere"
         public double pvalue { get; private set; } //the enrichment score
         public List<Tuple<double, double>> enrichmentPolygon { get; private set; } //the actual bounding polygon vertices (i.e. structure of enrichment "sphere")
+
+        public SpatialmHGResult(double pval, int thresh, Coordinate pos)
+        {
+            this.pvalue = pval;
+            this.mHGthreshold = thresh;
+            this.X = pos.X;
+            this.Y = pos.Y;
+            enrichmentPolygon = new List<Tuple<double, double>>();
+        }
 
         public SpatialmHGResult(Cell c)
         {

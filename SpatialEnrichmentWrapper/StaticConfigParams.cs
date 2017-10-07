@@ -23,13 +23,15 @@ namespace SpatialEnrichmentWrapper
         Search_SimulatedAnnealing = 1 << 7,
         Search_FixedSet = 1 << 8,
         Search_LineSweep = 1 << 9,
-        Filter_DegenerateLines = 1 << 10
+        Filter_DegenerateLines = 1 << 10,
+        Experiment_ComparePivots = 1 << 11
     }
 
     public static class StaticConfigParams
     {
-        public static bool WriteToCSV = false; //writes cell to files
+        public static bool WriteToCSV = true; //writes cell to files
         public const double TOLERANCE = 1E-10;
+        public const double CONST_PROBLEM_SCALE = 100;
         public const double CONST_NEGATIVELABELRATE = 0.6;
         public const double ExploreExploitRatio = 0.9;
         public const int CONST_CONCURRENCY = 30;
@@ -49,10 +51,11 @@ namespace SpatialEnrichmentWrapper
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
         public Actions ActionList =
+            //Actions.Experiment_ComparePivots |
             //Actions.Program_RandomConstSeed |
-            Actions.Instance_PlantedSingleEnrichment |
+            //Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
-            Actions.Filter_DegenerateLines |
+            //Actions.Filter_DegenerateLines | // Warning, this might not work.
             //Actions.Search_Originals;
             //Actions.Search_Exhaustive;
             //Actions.Search_LineSweep;

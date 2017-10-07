@@ -103,6 +103,13 @@ namespace SpatialEnrichment
                         }
                     }
             Config.Log.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
+            // Add bounding box (diamond)
+            var absDist = points.Max(p => p.EuclideanDistance(new Coordinate(0.0, 0.0)));
+            Lines.Add(new Line(-1, StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line( 1, StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line( 1 + ((StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE), -StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line(-1 + ((StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE), -StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+
             EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
             DepletedLines = new bool[Lines.Count];
             Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
@@ -774,22 +781,28 @@ namespace SpatialEnrichment
             while(openSegment == null && SLe.MoveNext())
             {
                 var line = SLe.Current;
-                //lid++;
-                var ptArnk = prevCell.PointRanks[line.PointAId];
-                var ptBrnk = prevCell.PointRanks[line.PointBId];
-                if (ptArnk > ptBrnk) Generics.Swap(ref ptArnk, ref ptBrnk);
-                
-                //Adding a line to segment.
-                Generics.Swap(ref boolVec[ptArnk], ref boolVec[ptBrnk]);
-                for (var i = ptArnk; i < ptBrnk + 1; i++)
-                    coordVec[i] = (i > 0 ? coordVec[i - 1] : 0) + (boolVec[i] ? 1 : 0);
+                int remainingSkips;
+                if (line.PointAId != -1 || line.PointBId != -1)
+                {
+                    //lid++;
+                    var ptArnk = prevCell.PointRanks[line.PointAId];
+                    var ptBrnk = prevCell.PointRanks[line.PointBId];
+                    if (ptArnk > ptBrnk) Generics.Swap(ref ptArnk, ref ptBrnk);
 
-                skipsArray[coordVec[ptArnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? 1 : -1;
+                    //Adding a line to segment.
+                    Generics.Swap(ref boolVec[ptArnk], ref boolVec[ptBrnk]);
+                    for (var i = ptArnk; i < ptBrnk + 1; i++)
+                        coordVec[i] = (i > 0 ? coordVec[i - 1] : 0) + (boolVec[i] ? 1 : 0);
+
+                    skipsArray[coordVec[ptArnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? 1 : -1;
                     //raised a 0 and lowered a 1 in the vector
-                skipsArray[coordVec[ptBrnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? -1 : 1;
+                    skipsArray[coordVec[ptBrnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? -1 : 1;
                     //raised a 1 and lowered a 0 in the vector
 
-                var remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
+                    remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
+                }
+                else
+                    remainingSkips = 1;
                 if (lastLine != null)
                 {
                     openSegment = sortLL.GetSegment(seg.Source.Id, lastLine, line);
