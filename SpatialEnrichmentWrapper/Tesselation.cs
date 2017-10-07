@@ -778,11 +778,11 @@ namespace SpatialEnrichment
             var skipsArray = prevCell.mHG.Item3.ToArray(); //min number of skips per threshold to beat mHG opt
             Line lastLine = null;
             var lid = 0;
+            int remainingSkips = 0;
             while(openSegment == null && SLe.MoveNext())
             {
                 var line = SLe.Current;
-                int remainingSkips;
-                if (line.PointAId != -1 || line.PointBId != -1)
+                if (line.PointAId != -1 || line.PointBId != -1) // if this isnt a faux-line (bounding box)
                 {
                     //lid++;
                     var ptArnk = prevCell.PointRanks[line.PointAId];
@@ -801,8 +801,6 @@ namespace SpatialEnrichment
 
                     remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
                 }
-                else
-                    remainingSkips = 1;
                 if (lastLine != null)
                 {
                     openSegment = sortLL.GetSegment(seg.Source.Id, lastLine, line);

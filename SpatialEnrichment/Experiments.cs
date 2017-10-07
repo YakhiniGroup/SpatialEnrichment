@@ -24,7 +24,7 @@ namespace SpatialEnrichment
             #endregion
             //Load coordinates and labels
             var identities = new List<string>();
-            var resultPairs = new List<Tuple<SpatialmHGResult, SpatialmHGResult>>();
+            var resultPairedDiff = new List<double>();
             int victories = 0, ties = 0;
             using (var fileout = new StreamWriter(@"pivot_vs_exhaustive.csv"))
                 for (var instanceIter = 0; instanceIter < numiter; instanceIter++)
@@ -81,10 +81,12 @@ namespace SpatialEnrichment
                         ties++;
                     else
                         Console.WriteLine($"Debug me");
+                    resultPairedDiff.Add(Math.Log10(resultsPivot.pvalue) - Math.Log10(resultsExhaustive.pvalue));
                 }
 
             Console.WriteLine($"Out of {numiter} iterations, spatial enrichment won in {victories} and tied in {ties}.");
             Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
+            File.WriteAllLines("experiment_pvaldiffs.txt", resultPairedDiff.Select(v=>v.ToString()).ToArray());
             Console.ReadKey();
         }
     }

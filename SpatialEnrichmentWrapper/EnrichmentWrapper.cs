@@ -155,7 +155,7 @@ namespace SpatialEnrichmentWrapper
                 var res = mHGJumper.minimumHypergeometric(vec);
                 results.Add(new SpatialmHGResult(res.Item1, res.Item2, piv));
             });
-            return results.OrderBy(r=>r.pvalue).Take(Config.GetTopKResults).Cast<ISpatialmHGResult>().ToList();
+            return results.Where(r=>r != null).OrderBy(r=>r.pvalue).Take(Config.GetTopKResults).Cast<ISpatialmHGResult>().ToList();
         }
 
     }

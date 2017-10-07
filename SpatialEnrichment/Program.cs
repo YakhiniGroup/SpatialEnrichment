@@ -20,7 +20,7 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 300;
+            var numcoords = 20;
             Config = new ConfigParams("");
 
             if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
@@ -176,39 +176,44 @@ namespace SpatialEnrichment
 
         public static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels, bool save=true)
         {
-            if ((Config.ActionList & Actions.Instance_Uniform) != 0)
-            {
-                for (var i = 0; i < numcoords; i++)
+            bool instance_created = false;
+            while(!instance_created)
+            { 
+                if ((Config.ActionList & Actions.Instance_Uniform) != 0)
                 {
-                    if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                        coordinates.Add(Coordinate.MakeRandom());
-                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                        coordinates.Add(Coordinate3D.MakeRandom());
-                    labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
-                }        
-            }
-            if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
-            {
-                for (var i = 0; i < numcoords; i++)
+                    for (var i = 0; i < numcoords; i++)
+                    {
+                        if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                            coordinates.Add(Coordinate.MakeRandom());
+                        else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
+                            coordinates.Add(Coordinate3D.MakeRandom());
+                        labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
+                    }        
+                }
+                if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
+                {
+                    for (var i = 0; i < numcoords; i++)
+                        if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                            coordinates.Add(Coordinate.MakeRandom());
+                        else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
+                            coordinates.Add(Coordinate3D.MakeRandom());
+                    ICoordinate pivotCoord = null;
                     if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                        coordinates.Add(Coordinate.MakeRandom());
+                        pivotCoord = Coordinate.MakeRandom();
                     else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                        coordinates.Add(Coordinate3D.MakeRandom());
-                ICoordinate pivotCoord = null;
-                if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                    pivotCoord = Coordinate.MakeRandom();
-                else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                    pivotCoord = Coordinate3D.MakeRandom();
-                var posIds =
-                    new HashSet<int>(
-                        coordinates.Select((t, idx) => new {Idx = idx, Dist = t.EuclideanDistance(pivotCoord)})
-                            .OrderBy(t => t.Dist)
-                            .Take((int) ((1- StaticConfigParams.CONST_NEGATIVELABELRATE)*numcoords))
-                            .Select(t => t.Idx));
-                for (var i = 0; i < numcoords; i++)
-                    labels.Add(posIds.Contains(i));
+                        pivotCoord = Coordinate3D.MakeRandom();
+                    var posIds =
+                        new HashSet<int>(
+                            coordinates.Select((t, idx) => new {Idx = idx, Dist = t.EuclideanDistance(pivotCoord)})
+                                .OrderBy(t => t.Dist)
+                                .Take((int) ((1- StaticConfigParams.CONST_NEGATIVELABELRATE)*numcoords))
+                                .Select(t => t.Idx));
+                    for (var i = 0; i < numcoords; i++)
+                        labels.Add(posIds.Contains(i));
+                }
+                instance_created = labels.Any();
             }
-            if(save)
+            if (save)
                 Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
                     $@"coords_{StaticConfigParams.filenamesuffix}.csv");
         }
