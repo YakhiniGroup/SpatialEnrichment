@@ -51,7 +51,7 @@ namespace SpatialEnrichmentWrapper
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
         public Actions ActionList =
-            Actions.Experiment_ComparePivots |
+            //Actions.Experiment_ComparePivots |
             //Actions.Program_RandomConstSeed |
             //Actions.Instance_PlantedSingleEnrichment |
             Actions.Instance_Uniform |
