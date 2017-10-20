@@ -597,6 +597,7 @@ namespace SpatialEnrichment
             var tskList = new List<Task>();
             KeyValuePair<double, Cell> currCell;
             bool init = true;
+            int resampleCount = 0;
             while (tskList.Any(t => !t.IsCompleted) || init) //while any job is adding new cells
             {
                 init = false;
@@ -613,13 +614,15 @@ namespace SpatialEnrichment
                 }
                 Task.WaitAll(tskLst.ToArray());
                 tskList.Clear();
-                Config.Log.WriteLine("Finished traversal, resampling from leftovers.");
+                resampleCount++;
                 var unseenCells = cmesh.GetUncoveredSegments().AsParallel()
                     .Select(seg => CoverCellFromSegment(cmesh, seg.Item1, seg.Item2))
                     .Where(t => t != null).Take(numStartCoords).ToList();
                 foreach (var cell in unseenCells)
                     tskList.Add(Task.Run(() => TraverseFromCell(cell, cmesh, AssignMap, bestCells)));
             }
+            Config.Log.WriteLine($"Finished traversal, resampled {resampleCount} times.");
+            
             return bestCells.Select(t => t.Value).OrderBy(t=>t.mHG.Item1);
         }
 
@@ -701,7 +704,7 @@ namespace SpatialEnrichment
             cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
             cell.SetId(Interlocked.Increment(ref cellCount));
             string outstring = string.Empty;
-            if (cell.MyId % 100 == 0)
+            if (cell.MyId % 1000 == 0)
             {
                 var numcovered = (int) (sortLL.segmentCount / 8);
                 var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / Config.Cellcount
@@ -712,10 +715,6 @@ namespace SpatialEnrichment
                 Console.Write("\r\r\r\r\r\r\r\r"+outstring);
                 if (!sw.IsRunning)
                     sw.Start();
-            }
-            if (cell.MyId % 1000 == 0)
-            {
-                Config.Log.WriteLine((int)((sortLL.segmentCount / 8) / EstimatedCellCount), outstring);
             }
             if (StaticConfigParams.WriteToCSV)
                 Task.Run(() => cell.SaveToCSV($@"Cells\CellHit{cell.MyId}_{StaticConfigParams.filenamesuffix}.csv"));

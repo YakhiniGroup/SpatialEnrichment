@@ -30,9 +30,9 @@ namespace SpatialEnrichmentWrapper
     public static class StaticConfigParams
     {
         public static bool WriteToCSV = false; //writes cell to files
-        public const double TOLERANCE = 1E-10;
+        public const double TOLERANCE = 1E-8;
         public const double CONST_PROBLEM_SCALE = 100;
-        public const double CONST_NEGATIVELABELRATE = 0.6;
+        public const double CONST_NEGATIVELABELRATE = 0.7;
         public const double ExploreExploitRatio = 0.9;
         public const int CONST_CONCURRENCY = 30;
         public static mHGCorrectionType CorrectionType = mHGCorrectionType.Exact;
@@ -46,15 +46,15 @@ namespace SpatialEnrichmentWrapper
     {
         //configuration parameters
         public LogWrapper Log;
-        public int SKIP_SLACK = -1; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
+        public int SKIP_SLACK = -2; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
         public double SIGNIFICANCE_THRESHOLD = 0.05;
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
         public Actions ActionList =
-            //Actions.Experiment_ComparePivots |
+            Actions.Experiment_ComparePivots |
             //Actions.Program_RandomConstSeed |
-            //Actions.Instance_PlantedSingleEnrichment |
-            Actions.Instance_Uniform |
+            Actions.Instance_PlantedSingleEnrichment |
+            //Actions.Instance_Uniform |
             //Actions.Filter_DegenerateLines | // Warning, this might not work.
             //Actions.Search_Originals;
             //Actions.Search_Exhaustive;

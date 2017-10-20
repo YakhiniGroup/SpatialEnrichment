@@ -271,8 +271,8 @@ namespace SpatialEnrichment
         private int GetCoordNeighborId(int fromId, int toId)
         {
             return VertexNeighbors(fromId)
-                    .Select((v, id) => new { v, id }).Where(t => t.v != null)
-                    .First(t => t.v.CoordId == toId)
+                    .Select((v, id) => new { v, id })
+                    .First(t => t.v != null && t.v.CoordId == toId)
                     .id;
         }
 

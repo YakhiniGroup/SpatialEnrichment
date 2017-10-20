@@ -58,20 +58,27 @@ namespace SpatialEnrichment
             }
             //Load coordinates and labels
             var identities = new List<string>();
-
             for (var instanceIter = 0; instanceIter < 1; instanceIter++)
             {
                 var coordinates = new List<ICoordinate>();
-                var labels = new List<bool>();
+                List<bool> labels = null;
                 StaticConfigParams.filenamesuffix = instanceIter.ToString();
                 Console.WriteLine("File {0}",instanceIter);
-                if (args.Length>0) 
-                    if(File.Exists(args[0]))
-                        LoadCoordinatesFromFile(args, ref numcoords, coordinates, labels, identities, StaticConfigParams.rnd);
+                if (args.Length > 0)
+                    if (File.Exists(args[0]))
+                    {
+                        var res = LoadCoordinatesFromFile(args, ref numcoords, identities);
+                        coordinates = res.Item1;
+                        labels = res.Item2;
+                    }
                     else
                         throw new ArgumentException("Input file not found!");
                 else
-                    RandomizeCoordinatesAndSave(numcoords, coordinates, StaticConfigParams.rnd, labels);
+                {
+                    var res = RandomizeCoordinatesAndSave(numcoords);
+                    coordinates = res.Item1;
+                    labels = res.Item2;
+                }
 
                 var zeros = labels.Count(l => l == false);
                 var filterCount = (int)(Config.FilterKFurthestZeros * zeros);
@@ -144,6 +151,7 @@ namespace SpatialEnrichment
                 Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
                 Console.ReadKey();
             }
+            
         }
 
         public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
@@ -174,8 +182,10 @@ namespace SpatialEnrichment
             wrtr.Wait();
         }
 
-        public static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels, bool save=true)
+        public static Tuple<List<ICoordinate>, List<bool>> RandomizeCoordinatesAndSave(int numcoords, bool save=true)
         {
+            List<ICoordinate> coordinates = new List<ICoordinate>();
+            List<bool> labels = new List<bool>();
             bool instance_created = false;
             while(!instance_created)
             { 
@@ -187,7 +197,7 @@ namespace SpatialEnrichment
                             coordinates.Add(Coordinate.MakeRandom());
                         else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
                             coordinates.Add(Coordinate3D.MakeRandom());
-                        labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
+                        labels.Add(StaticConfigParams.rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
                     }        
                 }
                 if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
@@ -202,38 +212,30 @@ namespace SpatialEnrichment
                         pivotCoord = Coordinate.MakeRandom();
                     else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
                         pivotCoord = Coordinate3D.MakeRandom();
-                    var posIds =
-                        new HashSet<int>(
-                            coordinates.Select((t, idx) => new {Idx = idx, Dist = t.EuclideanDistance(pivotCoord)})
-                                .OrderBy(t => t.Dist)
-                                .Take((int) ((1- StaticConfigParams.CONST_NEGATIVELABELRATE)*numcoords))
-                                .Select(t => t.Idx));
-                    for (var i = 0; i < numcoords; i++)
-                        labels.Add(posIds.Contains(i));
+
+                    var prPos = (int) Math.Round((1.0 - StaticConfigParams.CONST_NEGATIVELABELRATE) * numcoords);
+                    mHGJumper.Initialize(prPos, numcoords - prPos);
+                    coordinates = coordinates.OrderBy(t => t.EuclideanDistance(pivotCoord)).ToList();
+                    labels = mHGJumper.SampleSignificantEnrichmentVector(1e-3).ToList();
+                    Console.WriteLine($"Instantiated sample with p={mHGJumper.minimumHypergeometric(labels.ToArray()).Item1:e} around pivot {pivotCoord.ToString()}");
+                    mHGJumper.optHGT = 0.05;
                 }
                 instance_created = labels.Any();
             }
             if (save)
                 Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
                     $@"coords_{StaticConfigParams.filenamesuffix}.csv");
+            return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
-        private static void PlantEnrichmentAndSave(int numcoords, List<Coordinate> coordinates, Random rnd, List<bool> labels)
-        {
-            for (var i = 0; i < numcoords; i++)
-            {
-                coordinates.Add(new Coordinate(rnd.NextDouble(), rnd.NextDouble()));
-                var dist = coordinates.Last().EuclideanDistance(new Coordinate(0, 0));
-                labels.Add(rnd.NextDouble() > 1.0 - (1.0 / dist)); //verify this
-            }
-            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => new[] { a.X, a.Y, Convert.ToDouble(b) }).ToList(), @"coords.csv");
-        }
-
-        private static void LoadCoordinatesFromFile(string[] args, ref int numcoords, List<ICoordinate> coordinates,
-            List<bool> labels, List<string> identities, Random rnd)
+        
+        private static Tuple<List<ICoordinate>, List<bool>> LoadCoordinatesFromFile(string[] args, ref int numcoords, List<string> identities)
         {
             var lines = File.ReadLines(args[0]).Select(l => l.Split(','));
             numcoords = 0;
+            List<ICoordinate> coordinates = new List<ICoordinate>();
+            List<bool> labels = new List<bool>();
+
             foreach (var line in lines)
             {
                 numcoords ++;
@@ -260,9 +262,10 @@ namespace SpatialEnrichment
                 else if (line.Length == 2)
                 {
                     coordinates.Add(new Coordinate(Convert.ToDouble(line[0]), Convert.ToDouble(line[1])));
-                    labels.Add(rnd.NextDouble() > 0.5);
+                    labels.Add(StaticConfigParams.rnd.NextDouble() > 0.5);
                 }
             }
+            return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
         

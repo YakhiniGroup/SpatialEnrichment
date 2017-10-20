@@ -15,7 +15,7 @@ namespace SpatialEnrichment
 
 
 
-        public static void CompareExhaustiveWithPivots(int numcoords = 40, int numiter=100)
+        public static void CompareExhaustiveWithPivots(int numcoords = 50, int numiter=500)
         {
             Config = new ConfigParams("");
             #region init
@@ -33,8 +33,9 @@ namespace SpatialEnrichment
                     var labels = new List<bool>();
                     StaticConfigParams.filenamesuffix = instanceIter.ToString();
                     Console.WriteLine("File {0}", instanceIter);
-                    Program.RandomizeCoordinatesAndSave(numcoords, coordinates, StaticConfigParams.rnd, labels, false);
-
+                    var res = Program.RandomizeCoordinatesAndSave(numcoords, false);
+                    coordinates = res.Item1;
+                    labels = res.Item2;
                     var zeros = labels.Count(l => l == false);
                     var filterCount = (int)(Config.FilterKFurthestZeros * zeros);
                     if (filterCount > 0)
@@ -75,6 +76,7 @@ namespace SpatialEnrichment
                     var resultsExhaustive = ew.SpatialmHGWrapper(instanceData).Select(v => (SpatialmHGResult)v).First();
                     var resultsPivot = ew.mHGPivotWrapper(instanceData).Select(v => (SpatialmHGResult)v).First();
                     fileout.WriteLine($"{resultsExhaustive.pvalue}, {resultsPivot.pvalue}");
+                    
                     if (resultsExhaustive.pvalue < resultsPivot.pvalue)
                         victories++;
                     else if (resultsExhaustive.pvalue == resultsPivot.pvalue)

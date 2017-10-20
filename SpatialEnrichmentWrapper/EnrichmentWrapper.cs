@@ -102,7 +102,6 @@ namespace SpatialEnrichmentWrapper
             var ones = labels.Sum(t => t == true ? 1 : 0);
             var numcoords = labels.Count;
             mHGJumper.Initialize(ones, numcoords - ones);
-            mHGJumper.optHGT = 0.05;
         }
 
         private List<SpatialmHGResult> Solve2DProblem(List<Coordinate> coords, List<bool> labels, List<Coordinate3D> projectedFrom = null, PrincipalComponentAnalysis pca = null)
@@ -147,7 +146,7 @@ namespace SpatialEnrichmentWrapper
             var cpivots = pivots == null ? coordinates.Select(c => new Coordinate(c.Item1, c.Item2)).ToList() : pivots.Select(c => new Coordinate(c.Item1, c.Item2)).ToList();
             var labeledCoords = coordinates.Select(c => new { Coord = new Coordinate(c.Item1, c.Item2), Label = c.Item3 }).ToList();
             InitializeMHG(labeledCoords.Select(c=>c.Label).ToList());
-            var results = new List<SpatialmHGResult>();
+            var results = new ConcurrentBag<SpatialmHGResult>();
             Parallel.ForEach(cpivots, piv =>
             {
                 var ordDat = labeledCoords.OrderBy(c => piv.EuclideanDistance(c.Coord)).ToList();
