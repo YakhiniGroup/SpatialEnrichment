@@ -7,6 +7,7 @@ using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SpatialEnrichment.Helpers;
 
 namespace SpatialEnrichment
 {
@@ -181,11 +182,121 @@ namespace SpatialEnrichment
             return ls;
         }
 
+        /// <summary>
+        /// Cover the points in the segment from the segment's 'direction' side.
+        /// </summary>
+        /// <param name="seg"></param>
+        /// <param name="direction"></param>
+        public void CoverSegment(LineSegment seg, Tesselation.SegmentCellCovered direction)
+        {
+            //CoverCoordPair(seg.FirstIntersectionCoord,seg.SecondIntersectionCoord, direction);
+            var inVertexId = seg.SecondIntersectionCoord.CoordId.Value;
+            var inLexProg = seg.IsPositiveLexicographicProgress();
+            var covered = true;
+            for (var i = 0; i < 4; i++)
+            {
+                var curr = LineIntersections[inVertexId, i];
+                if (curr == null || curr.CoordId == seg.FirstIntersectionCoord.CoordId) continue;
+                var angle = LineSegment.GetAngle(seg.FirstIntersectionCoord, seg.SecondIntersectionCoord, seg.SecondIntersectionCoord, curr);
+                var lineIds = LineIdsFromCoordId(curr.CoordId.Value);
+                if ((direction & Tesselation.SegmentCellCovered.Right) != 0 && (inLexProg ? angle < 180 : angle > 180 && lineIds.Item1 != seg.Source.Id && lineIds.Item2 != seg.Source.Id))
+                {
+                    CoverCoordPair(seg.SecondIntersectionCoord, curr, direction);
+                }
+                if ((direction & Tesselation.SegmentCellCovered.Left) != 0 && (inLexProg ? angle > 180 : angle < 180 && lineIds.Item1 != seg.Source.Id && lineIds.Item2 != seg.Source.Id))
+                {
+                    CoverCoordPair(seg.SecondIntersectionCoord, curr, direction);
+                }
+            }
+            /*
+            var neighborCoords = VertexNeighbors(inVertexId)
+                           .Select((v, id) => new { Vertex = v, Id = id }).Where(v => v.Vertex != null).Select(v => new
+                           {
+                               v.Vertex,
+                               v.Id,
+                               Angle = LineSegment.GetAngle(seg.FirstIntersectionCoord, seg.SecondIntersectionCoord,
+                                                            seg.SecondIntersectionCoord, v.Vertex),
+                               LineIds = LineIdsFromCoordId(v.Vertex.CoordId.Value)
+                           }).ToList(4);
+            if ((direction & Tesselation.SegmentCellCovered.Right) != 0)
+            {
+                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
+                if (nextCoord != null)
+                    CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
+            }
+            if ((direction & Tesselation.SegmentCellCovered.Left) != 0)
+            {
+                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
+                if (nextCoord != null)
+                    CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
+            }
+            */
+        }
+
+
+        public LineSegment GetSegmentNeighborBreaking(LineSegment prevSeg, Tesselation.SegmentCellCovered nextDirection)
+        {
+            var inVertexId = prevSeg.SecondIntersectionCoord.CoordId.Value;
+            var relevantLines = LineIdsFromCoordId(inVertexId);
+            var newSource = relevantLines.Item1 != prevSeg.Source.Id ? relevantLines.Item1 : relevantLines.Item2;
+            for (var i = 0; i < 4; i++)
+            {
+                var curr = LineIntersections[inVertexId, i];
+                if (curr == null || curr.CoordId == prevSeg.FirstIntersectionCoord.CoordId) continue;
+                var angle = LineSegment.GetAngle(prevSeg.FirstIntersectionCoord, prevSeg.SecondIntersectionCoord,
+                    prevSeg.SecondIntersectionCoord, curr);
+                var lineIds = LineIdsFromCoordId(curr.CoordId.Value);
+                if ((nextDirection & Tesselation.SegmentCellCovered.Right) != 0)
+                {
+                    if (angle < 180 && lineIds.Item1 != prevSeg.Source.Id && lineIds.Item2 != prevSeg.Source.Id)
+                    {
+                        var coordlineid = lineIds.Item1 != newSource ? lineIds.Item1 : lineIds.Item2;
+                        return new LineSegment(Lines[newSource], prevSeg.SecondIntersection, Lines[coordlineid],
+                            prevSeg.SecondIntersectionCoord, curr);
+                    }
+                }
+                if ((nextDirection & Tesselation.SegmentCellCovered.Left) != 0)
+                {
+                    if (angle > 180 && lineIds.Item1 != prevSeg.Source.Id && lineIds.Item2 != prevSeg.Source.Id)
+                    {
+                        var coordlineid = lineIds.Item1 != newSource ? lineIds.Item1 : lineIds.Item2;
+                        return new LineSegment(Lines[newSource], prevSeg.SecondIntersection, Lines[coordlineid],
+                            prevSeg.SecondIntersectionCoord, curr);
+                    }
+                }
+            }
+            return null;
+        }
+
         public IEnumerable<LineSegment> GetSegmentNeighbors(LineSegment prevSeg, Tesselation.SegmentCellCovered nextDirection)
         {
             var inVertexId = prevSeg.SecondIntersectionCoord.CoordId.Value;
             var relevantLines = LineIdsFromCoordId(inVertexId);
             var newSource = relevantLines.Item1 != prevSeg.Source.Id ? relevantLines.Item1 : relevantLines.Item2;
+            for (var i = 0; i < 4; i++)
+            {
+                var curr = LineIntersections[inVertexId, i];
+                if (curr == null || curr.CoordId == prevSeg.FirstIntersectionCoord.CoordId) continue;
+                var angle = LineSegment.GetAngle(prevSeg.FirstIntersectionCoord, prevSeg.SecondIntersectionCoord, prevSeg.SecondIntersectionCoord, curr);
+                var lineIds = LineIdsFromCoordId(curr.CoordId.Value);
+                if ((nextDirection & Tesselation.SegmentCellCovered.Right) != 0)
+                {
+                    if (angle < 180 && lineIds.Item1 != prevSeg.Source.Id && lineIds.Item2 != prevSeg.Source.Id)
+                    {
+                        var coordlineid = lineIds.Item1 != newSource ? lineIds.Item1 : lineIds.Item2;
+                        yield return new LineSegment(Lines[newSource], prevSeg.SecondIntersection, Lines[coordlineid], prevSeg.SecondIntersectionCoord, curr);
+                    }
+                }
+                if ((nextDirection & Tesselation.SegmentCellCovered.Left) != 0)
+                {
+                    if (angle > 180 && lineIds.Item1 != prevSeg.Source.Id && lineIds.Item2 != prevSeg.Source.Id)
+                    {
+                        var coordlineid = lineIds.Item1 != newSource ? lineIds.Item1 : lineIds.Item2;
+                        yield return new LineSegment(Lines[newSource], prevSeg.SecondIntersection, Lines[coordlineid], prevSeg.SecondIntersectionCoord, curr);
+                    }
+                }
+            }
+            /*
             var inLexProg = prevSeg.IsPositiveLexicographicProgress() ? 0 : 2;
             var neighborCoords = VertexNeighbors(inVertexId)
                .Select((v, id) => new { Vertex = v, Id = id }).Where(v => v.Vertex != null && v.Vertex.CoordId != prevSeg.FirstIntersectionCoord.CoordId)
@@ -215,6 +326,7 @@ namespace SpatialEnrichment
                     yield return new LineSegment(Lines[newSource], prevSeg.SecondIntersection, Lines[coordlineid], prevSeg.SecondIntersectionCoord, nextCoord.Vertex);
                 }
             }
+            */
         }
 
         public IEnumerable<Coordinate> VertexNeighbors(int vid)
@@ -270,10 +382,16 @@ namespace SpatialEnrichment
 
         private int GetCoordNeighborId(int fromId, int toId)
         {
+            for (var i = 0; i < 4; i++)
+                if (LineIntersections[fromId, i] != null && LineIntersections[fromId, i].CoordId == toId)
+                    return i;
+            return -1;
+            /*
             return VertexNeighbors(fromId)
                     .Select((v, id) => new { v, id })
                     .First(t => t.v != null && t.v.CoordId == toId)
                     .id;
+            */
         }
 
 
@@ -294,46 +412,16 @@ namespace SpatialEnrichment
             }
         }
 
-        /// <summary>
-        /// Cover the points in the segment from the segment's 'direction' side.
-        /// </summary>
-        /// <param name="seg"></param>
-        /// <param name="direction"></param>
-        public void CoverSegment(LineSegment seg, Tesselation.SegmentCellCovered direction)
-        {
-            //CoverCoordPair(seg.FirstIntersectionCoord,seg.SecondIntersectionCoord, direction);
-            var inVertexId = seg.SecondIntersectionCoord.CoordId.Value;
-            var inLexProg = seg.IsPositiveLexicographicProgress();
-            var covered = true;
-            var neighborCoords = VertexNeighbors(inVertexId)
-                           .Select((v, id) => new { Vertex = v, Id = id }).Where(v => v.Vertex != null).Select(v => new
-                           {
-                               v.Vertex,
-                               v.Id,
-                               Angle = LineSegment.GetAngle(seg.FirstIntersectionCoord, seg.SecondIntersectionCoord,
-                                                            seg.SecondIntersectionCoord, v.Vertex),
-                               LineIds = LineIdsFromCoordId(v.Vertex.CoordId.Value)
-                           }).ToList();
-            if ((direction & Tesselation.SegmentCellCovered.Right) != 0)
-            {
-                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
-                if(nextCoord!=null)
-                    CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
-            }
-            if ((direction & Tesselation.SegmentCellCovered.Left) != 0)
-            {
-                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
-                if (nextCoord != null)
-                    CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
-            }
-        }
+        
 
         public LineSegment GetSegment(int sourceId, Line lineLine, Line lastLine)
         {
             var firstIntersection = coords[CoordIdFromLineIds(sourceId, lineLine.Id)];
             var secondIntersection = coords[CoordIdFromLineIds(sourceId, lastLine.Id)];
+            /*
             if (!VertexNeighbors(firstIntersection.CoordId.Value).Contains(secondIntersection))
                 Console.WriteLine('.');
+            */
             return new LineSegment(Lines[sourceId], lineLine, lastLine, firstIntersection, secondIntersection);
         }
 

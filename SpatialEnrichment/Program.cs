@@ -20,13 +20,13 @@ namespace SpatialEnrichment
         {
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 20;
+            var numcoords = 100;
             Config = new ConfigParams("");
 
             if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
             {
                 Console.WriteLine(@"Running pivot comparison experiment");
-                Experiments.CompareExhaustiveWithPivots();
+                Experiments.CompareExhaustiveWithPivots(numcoords, numiter:30);
                 return;
             }
 

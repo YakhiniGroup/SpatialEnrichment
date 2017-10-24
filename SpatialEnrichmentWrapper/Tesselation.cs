@@ -458,7 +458,7 @@ namespace SpatialEnrichment
             var prevSeg = s;
             while (segQueue.Count<3 || !prevSeg.SharesIntersection(s))
             {
-                var nextSeg = ds.GetSegmentNeighbors(prevSeg, direction).FirstOrDefault();
+                var nextSeg = ds.GetSegmentNeighborBreaking(prevSeg, direction);
                 //Data structure does not contain a neighboring segment in the required direction
                 if (nextSeg == null) 
                 {
@@ -704,7 +704,7 @@ namespace SpatialEnrichment
             cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
             cell.SetId(Interlocked.Increment(ref cellCount));
             string outstring = string.Empty;
-            if (cell.MyId % 1000 == 0)
+            if (cell.MyId % 100 == 0)
             {
                 var numcovered = (int) (sortLL.segmentCount / 8);
                 var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / Config.Cellcount
