@@ -65,7 +65,7 @@ namespace SpatialEnrichmentWrapper
                     prevTask.Wait();
                     lastmsg = msg;
                     int skipcounter = 0;
-                    while (messageQueue.TryTake(out var tmpmsg, TimeSpan.FromSeconds(1)) && skipcounter < 100)
+                    while (messageQueue.TryTake(out var tmpmsg, TimeSpan.FromMilliseconds(1)) && skipcounter < 100)
                     {
                         skipcounter++;
                         lastmsg = tmpmsg;
