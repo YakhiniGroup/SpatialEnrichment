@@ -272,6 +272,7 @@ namespace SpatialEnrichment
             for (var i=0; i<pointsCount; i++)
                 LineIdsMap[i] = new int[pointsCount];
         }
+
     }
 
 
@@ -775,10 +776,6 @@ namespace SpatialEnrichment
             return _mHG;
         }
 
-        public void SetId(int id)
-        {
-            this.MyId = id;
-        }
 
         
     }

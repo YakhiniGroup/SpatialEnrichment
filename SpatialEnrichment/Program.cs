@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
 
@@ -18,9 +19,12 @@ namespace SpatialEnrichment
         static ConfigParams Config;
         static void Main(string[] args)
         {
+            var options = new CommandlineParameters();
+            var isValid = Parser.Default.ParseArgumentsStrict(args, options);
+            
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 100;
+            var numcoords = 300;
             Config = new ConfigParams("");
 
             if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
@@ -57,6 +61,7 @@ namespace SpatialEnrichment
                     file.Delete();
             }
             //Load coordinates and labels
+            var infile = Path.GetFileNameWithoutExtension(args.Length>0?args[0]:"");
             var identities = new List<string>();
             for (var instanceIter = 0; instanceIter < 1; instanceIter++)
             {
@@ -127,8 +132,9 @@ namespace SpatialEnrichment
                 {
                     Config.Cellcount += MathExtensions.Binomial(linecount, 3);
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
-                    results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
-                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2), b)).ToList());
+                    results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels,
+                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1),
+                            a.GetDimension(2), b)).ToList(), options.BatchMode);
                 }
                 else if (coordType == typeof(Coordinate))
                 {
@@ -138,12 +144,18 @@ namespace SpatialEnrichment
                 }
                 for (var resid = 0; resid < results.Count; resid++)
                 {
-                    results[resid].SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", resid, StaticConfigParams.filenamesuffix));
+                    results[resid].SaveToCSV($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv");
+                }
+                using (var outfile = new StreamWriter($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv"))
+                    foreach (var res in Config.mHGlist.Where(t => t != null))
+                        outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
+                if (options.BatchMode)
+                {
+                    AzureBatchExecution.UploadFileToContainer($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
+                    for (var resid = 0; resid < results.Count; resid++)
+                        AzureBatchExecution.UploadFileToContainer($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
                 }
             }
-            using (var outfile = new StreamWriter("mhglist.csv"))
-                foreach (var res in Config.mHGlist.Where(t=>t!=null))
-                    outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
 
             //Finalize
             if (args.Length == 0 || Debugger.IsAttached)

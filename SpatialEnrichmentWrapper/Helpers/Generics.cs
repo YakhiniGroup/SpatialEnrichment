@@ -17,6 +17,8 @@ namespace SpatialEnrichment.Helpers
 
         public static void SaveToCSV(IEnumerable<string> coords, string outfile, bool wait = false)
         {
+            if (!Directory.Exists(Path.GetDirectoryName(Path.GetFullPath(outfile))))
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outfile)));
             var tsk = Task.Run(() =>
             {
                 File.WriteAllText(outfile, string.Join("\n", coords.Select(c => c.ToString())));
