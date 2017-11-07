@@ -623,7 +623,7 @@ namespace SpatialEnrichment
                     tskList.Add(Task.Run(() => TraverseFromCell(cell, cmesh, AssignMap, bestCells)));
             }
             Config.Log.WriteLine($"Finished traversal, resampled {resampleCount} times.");
-            
+            Config.Log.Seal();
             return bestCells.Select(t => t.Value).OrderBy(t=>t.mHG.Item1);
         }
 

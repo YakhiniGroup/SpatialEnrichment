@@ -37,6 +37,7 @@ namespace SpatialEnrichmentWrapper
             var coords = coordinates.Select(t => new Coordinate(t.Item1, t.Item2)).ToList();
             InitializeMHG(labels);
             var solutions = Solve2DProblem(coords, labels);
+            Config.Log.updater?.Wait();
             return solutions.Cast<ISpatialmHGResult>().ToList();
         }
 
@@ -124,6 +125,7 @@ namespace SpatialEnrichmentWrapper
                 else
                     break;
             }
+            Config.Log.updater?.Wait();
             return combinedResultsNaive.Cast<ISpatialmHGResult>().ToList();
         }
 

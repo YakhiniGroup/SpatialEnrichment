@@ -101,6 +101,7 @@
     <Compile Include="Helpers\Generics.cs" />
     <Compile Include="Helpers\mHGJumper.cs" />
     <Compile Include="Helpers\ParseDatasets.cs" />
+    <Compile Include="Helpers\RandomInstance.cs" />
     <Compile Include="ICoordinate.cs" />
     <Compile Include="LogWrapper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
