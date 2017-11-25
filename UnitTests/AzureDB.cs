@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SpatialEnrichment;
 using SpatialEnrichmentWrapper;
 using SpatialEnrichmentWrapper.Helpers;
 
@@ -43,12 +42,6 @@ namespace UnitTests
                 .Select(v => new Tuple<double, double, bool>(double.Parse(v[2]), double.Parse(v[3]), v[1]=="1"))
                 .ToList();
             er.SpatialmHGWrapper(data);
-        }
-
-        [TestMethod]
-        public void TestExperimentSubsample()
-        {
-            Experiments.CompareExahustiveWithSubsamplingInput(50, 20);
         }
     }
 }
