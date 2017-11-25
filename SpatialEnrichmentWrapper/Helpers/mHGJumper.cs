@@ -82,12 +82,12 @@ namespace SpatialEnrichment.Helpers
                     scoreToPval.Add(runsum);
                 }
             }
-            TotalPaths = pathCounting(-0.1); //Todo: should be N choose B
+            TotalPaths = pathCounting(-0.1, out var pMat); //Todo: should be N choose B
             var tscoremap = new ConcurrentDictionary<double,double>();
             Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);
             Parallel.ForEach(scoreToPval, score =>
             {
-                var pval = 1.0 - (pathCounting(score) / TotalPaths);
+                var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
                 tscoremap.AddOrUpdate(score, pval, (a, b) => pval);
             });
             ScoreMap = tscoremap.ToDictionary(t => t.Key, t => t.Value);
@@ -121,41 +121,43 @@ namespace SpatialEnrichment.Helpers
         public static bool[] SampleSignificantEnrichmentVector(double pValThresh = 0.05)
         {
             var outvec = new List<bool>();
-            var hgtthresh = ScoreMap.Where(kvp => kvp.Value < pValThresh).OrderBy(v => StaticConfigParams.rnd.Next()).First();
-            var selectedpVal = hgtthresh.Value;
+            pathCounting(-1, out var pathCountMat);
+            var pathList = new List<Tuple<int, int, double, double>>();
+            for (var i = 0; i < Zeros + 1; i++)
+            for (var j = 0; j < Ones + 1; j++)
+                if(ScoreMap[HGTmat[i, j]] <= pValThresh)
+                    pathList.Add(new Tuple<int, int, double, double>(i,j, pathCountMat[i,j], ScoreMap[HGTmat[i, j]]));
 
-            for (var i=0; i<Zeros+1; i++)
-                for (var j = 0; j < Ones+1; j++)
-                    if (HGTmat[i,j]== hgtthresh.Key)
-                    {
-                        //permute required ones and zeros within enrichment threshold
-                        var onesInThresh = j;
-                        var zerosInThresh = i;
-                        
-                        for (var k = 0; k < i; k++)
-                            outvec.Add(false);
-                        for (var k = 0; k < j; k++)
-                            outvec.Add(true);
-                        outvec = outvec.OrderBy(v => StaticConfigParams.rnd.Next()).ToList(); 
+            var pathCountSum = pathList.Sum(v => Math.Log10(v.Item3));
+            var rnd = new Random();
+            var selection = rnd.NextDouble() * pathCountSum;
+            double pathCountCumsum = 0.0;
+            var item = pathList.OrderByDescending(v => v.Item3).SkipWhile(v => (pathCountCumsum += Math.Log10(v.Item3)) < selection).First();
 
-                        //Select remaining uniformly in vector
-                        var remainingOnes = Ones - j;
-                        var remainingZeros = Zeros - i;
-                        for (var k=0; k<(Ones + Zeros - i - j); k++)
-                        {
-                            var nextBool = StaticConfigParams.rnd.NextDouble() < (remainingOnes / remainingZeros) ? true : false;
-                            switch(nextBool)
-                            {
-                                case true:
-                                    remainingOnes--;
-                                    break;
-                                case false:
-                                    remainingZeros--;
-                                    break;
-                            }
-                            outvec.Add(nextBool);
-                        }
-                    }
+            for (var k = 0; k < item.Item1; k++) //zerosInThresh
+                outvec.Add(false);
+            for (var k = 0; k < item.Item2; k++) //onesInThresh
+                outvec.Add(true);
+            outvec = outvec.OrderBy(v => StaticConfigParams.rnd.Next()).ToList(); 
+
+            //Select remaining uniformly in vector
+            var remainingOnes = Ones - item.Item2;
+            var remainingZeros = Zeros - item.Item1;
+            for (var k = 0; k < (Ones + Zeros - item.Item1 - item.Item2); k++)
+            {
+                var nextBool = StaticConfigParams.rnd.NextDouble() < (remainingOnes / remainingZeros) ? true : false;
+                switch (nextBool)
+                {
+                    case true:
+                        remainingOnes--;
+                        break;
+                    case false:
+                        remainingZeros--;
+                        break;
+                }
+                outvec.Add(nextBool);
+            }
+
             return outvec.ToArray();
         }
 
@@ -166,9 +168,9 @@ namespace SpatialEnrichment.Helpers
         /// </summary>
         /// <param name="hgtScore"></param>
         /// <returns></returns>
-        public static double pathCounting(double hgtScore, bool upper = false)
+        public static double pathCounting(double hgtScore, out double[,] pMat)
         {
-            var pMat = new double[Zeros + 1, Ones + 1];
+            pMat = new double[Zeros + 1, Ones + 1];
             //There is exactly one path that travel on edges
             for (var i = 0; i < Zeros + 1; i++)
                 pMat[i, 0] = HGTmat[i, 0] > hgtScore ? 1 : 0;

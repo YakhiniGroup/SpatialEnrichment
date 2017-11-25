@@ -33,10 +33,20 @@ namespace SpatialEnrichmentWrapper
         /// <returns>a list of enriched 2d location centers as SpatialmHGResult</returns>
         public List<ISpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
         {
-            var labels = coordinates.Select(t => t.Item3).ToList();
-            var coords = coordinates.Select(t => new Coordinate(t.Item1, t.Item2)).ToList();
-            InitializeMHG(labels);
-            var solutions = Solve2DProblem(coords, labels);
+            List<SpatialmHGResult> solutions;
+            try
+            {
+                var labels = coordinates.Select(t => t.Item3).ToList();
+                var coords = coordinates.Select(t => new Coordinate(t.Item1, t.Item2)).ToList();
+                InitializeMHG(labels);
+                solutions = Solve2DProblem(coords, labels);
+            }
+            catch (Exception e)
+            {
+                Config.Log.WriteLine("Error: {0}", e.Message);
+                throw;
+            }
+            Config.Log.updater?.Wait();
             return solutions.Cast<ISpatialmHGResult>().ToList();
         }
 
@@ -124,6 +134,7 @@ namespace SpatialEnrichmentWrapper
                 else
                     break;
             }
+            Config.Log.updater?.Wait();
             return combinedResultsNaive.Cast<ISpatialmHGResult>().ToList();
         }
 

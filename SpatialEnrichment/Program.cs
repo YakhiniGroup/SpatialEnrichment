@@ -16,7 +16,7 @@ namespace SpatialEnrichment
 {
     public class Program
     {
-        static ConfigParams Config;
+        public static ConfigParams Config;
         static void Main(string[] args)
         {
             var options = new CommandlineParameters();
@@ -31,6 +31,12 @@ namespace SpatialEnrichment
             {
                 Console.WriteLine(@"Running pivot comparison experiment");
                 Experiments.CompareExhaustiveWithPivots(numcoords, numiter:30);
+                return;
+            }
+            if ((Config.ActionList & Actions.Experiment_SampleLines) != 0)
+            {
+                Console.WriteLine(@"Running sampling comparison experiment");
+                Experiments.CompareExahustiveWithSubsamplingInput(100, 20, 100);
                 return;
             }
 

@@ -67,6 +67,10 @@
       <Project>{bac53b11-ad64-4bf4-9daf-afa7f7fb70ce}</Project>
       <Name>SpatialEnrichmentWrapper</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SpatialEnrichment\SpatialEnrichment.csproj">
+      <Project>{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}</Project>
+      <Name>SpatialEnrichment</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

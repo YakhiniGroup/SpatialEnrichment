@@ -61,6 +61,7 @@ namespace SpatialEnrichment
         private Task convxTsk;
 
         public List<ICoordinate> ProjectedFrom = null;
+        public bool[] SourceLabels = null;
         public PrincipalComponentAnalysis pca = null;
         private ConfigParams Config;
         private double ExpectedCells => ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + 2.0 * Lines.Count + 1;
@@ -75,7 +76,7 @@ namespace SpatialEnrichment
             Points = points.Cast<ICoordinate>().ToList();
             labels = labels ?? Enumerable.Repeat(true, points.Count).ToList();
             PointLabels = labels.ToArray();
-            Identities = idendities.Any() ? idendities : null;
+            Identities = (idendities != null && idendities.Any()) ? idendities : null;
             convxTsk = ComputeConvexHull(points);
 
             Line.InitNumPoints(points.Count);
@@ -569,7 +570,7 @@ namespace SpatialEnrichment
             //var sortLL = new SortedIntersectionData(Lines.Count);
             var cmesh = new CoordMesh(Lines);
             int TryCounter = 0;
-            while (cellPQ.Count < numStartCoords && TryCounter < 10000) //cellPQ is a minHeap priotity queue (smaller key is better)
+            while (cellPQ.Count < numStartCoords && TryCounter < 1000) //cellPQ is a minHeap priotity queue (smaller key is better)
             {
                 var coord = (Coordinate)Coordinate.MakeRandom();
                 if (!IsCoordInHull(coord) && TryCounter < 1000)
@@ -623,7 +624,7 @@ namespace SpatialEnrichment
                     tskList.Add(Task.Run(() => TraverseFromCell(cell, cmesh, AssignMap, bestCells)));
             }
             Config.Log.WriteLine($"Finished traversal, resampled {resampleCount} times.");
-            
+            Config.Log.Seal();
             return bestCells.Select(t => t.Value).OrderBy(t=>t.mHG.Item1);
         }
 
@@ -698,10 +699,13 @@ namespace SpatialEnrichment
             bool banned;
             var cell = DirectedCellFromSegment(sortLL, startSeg, direction, out banned);
             if (banned || cell == null) return null;
-            if (ProjectedFrom==null)
+            if (ProjectedFrom == null)
                 cell.ComputeRanking(Points, PointLabels, Identities);
             else
-                cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
+                if(this.SourceLabels == null)
+                    cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
+                else
+                    cell.ComputeRanking(ProjectedFrom, SourceLabels, Identities);
             cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
             cell.MyId = Interlocked.Increment(ref cellCount);
             string outstring = string.Empty;

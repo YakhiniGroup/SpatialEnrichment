@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -24,7 +25,8 @@ namespace SpatialEnrichmentWrapper
         Search_FixedSet = 1 << 8,
         Search_LineSweep = 1 << 9,
         Filter_DegenerateLines = 1 << 10,
-        Experiment_ComparePivots = 1 << 11
+        Experiment_ComparePivots = 1 << 11,
+        Experiment_SampleLines = 1 << 12
     }
 
     public static class StaticConfigParams
@@ -46,12 +48,13 @@ namespace SpatialEnrichmentWrapper
     {
         //configuration parameters
         public LogWrapper Log;
-        public int SKIP_SLACK = -2; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
+        public int SKIP_SLACK = -3; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
         public double SIGNIFICANCE_THRESHOLD = 0.05;
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
         public Actions ActionList =
             //Actions.Experiment_ComparePivots |
+            Actions.Experiment_SampleLines | 
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
@@ -64,7 +67,7 @@ namespace SpatialEnrichmentWrapper
 
         //non-parameters
         public double Cellcount;
-        public List<Tuple<double, int>> mHGlist = new List<Tuple<double, int>>();
+        public ConcurrentBag<Tuple<double, int>> mHGlist = new ConcurrentBag<Tuple<double, int>>();
         public int computedMHGs;
         public Stopwatch timer = new Stopwatch();
 
