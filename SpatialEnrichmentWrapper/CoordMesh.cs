@@ -23,10 +23,13 @@ namespace SpatialEnrichment
         // Each row captures for vertex v the following order of relations: [pos x progress & right angle,pos x progress & left angle,neg x progress & right angle,neg x progress & left angle]
         // aka [+R,+L,-R,-L]
         private int Nlines;
+        private ConcurrentIndexing<int> idRemapping = new ConcurrentIndexing<int>();
         public CoordMesh(List<Line> lines)
         {
             var sw = Stopwatch.StartNew();
             Console.Write("Building mesh... ");
+            foreach(var line in lines)
+                idRemapping.Add(line.Id);
             LineToCoords = new List<Coordinate>[lines.Count];
             Lines = lines;
             Nlines = lines.Count;
@@ -52,7 +55,7 @@ namespace SpatialEnrichment
                 LineToCoords[i] = new List<Coordinate>(ltr.Select(t=>t.Coord));
                 for (var j = 0; j < ltr.Count; j++)
                 {
-                    var inVertexId  = CoordIdFromLineIds(lines[i].Id, ltr[j].Line.Id);
+                    var inVertexId  = CoordIdFromLineIds((int)idRemapping[lines[i].Id], (int)idRemapping[ltr[j].Line.Id]);
                     ltr[j].Coord.CoordId = inVertexId;
                     coords[inVertexId] = ltr[j].Coord;
                     var isfirst = LineIntersections[inVertexId , 0] == null &&
@@ -169,16 +172,16 @@ namespace SpatialEnrichment
 
         public LineSegment GetSegmentContainingCoordinateOnLine(int closestLineId, Coordinate startCoord)
         {
-            var nearestHit = LineToCoords[closestLineId].BinarySearch(startCoord, new CoordinateComparer());
+            var nearestHit = LineToCoords[idRemapping[closestLineId]].BinarySearch(startCoord, new CoordinateComparer());
             nearestHit = nearestHit < 0 ? ~nearestHit : nearestHit;
             if (nearestHit == 0 || nearestHit > Nlines-2) return null;
-            var tmp1 = LineToCoords[closestLineId][nearestHit-1];
-            var tmp2 = LineToCoords[closestLineId][nearestHit];
+            var tmp1 = LineToCoords[idRemapping[closestLineId]][nearestHit-1];
+            var tmp2 = LineToCoords[idRemapping[closestLineId]][nearestHit];
             var c1lines = LineIdsFromCoordId(tmp1.CoordId.Value);
             var c2lines = LineIdsFromCoordId(tmp2.CoordId.Value);
-            var c1l = c1lines.Item1 != closestLineId ? c1lines.Item1 : c1lines.Item2;
-            var c2l = c2lines.Item1 != closestLineId ? c2lines.Item1 : c2lines.Item2;
-            var ls = new LineSegment(Lines[closestLineId], Lines[c1l], Lines[c2l], tmp1, tmp2);
+            var c1l = c1lines.Item1 != idRemapping[closestLineId] ? c1lines.Item1 : c1lines.Item2;
+            var c2l = c2lines.Item1 != idRemapping[closestLineId] ? c2lines.Item1 : c2lines.Item2;
+            var ls = new LineSegment(Lines[(int)idRemapping[closestLineId]], Lines[c1l], Lines[c2l], tmp1, tmp2);
             return ls;
         }
 

@@ -293,9 +293,20 @@ namespace SpatialEnrichment
         public Coordinate SecondIntersectionCoord;
         private Tuple<int, int, int> _tupleId;
 
-    
+
+        public LineSegment(Line source, Line itx1, Line itx2)
+        {
+            Source = source;
+            FirstIntersection = itx1;
+            SecondIntersection = itx2;
+            FirstIntersectionCoord = source.Intersection(itx1);
+            SecondIntersectionCoord = source.Intersection(itx2);
+        }
+
         public LineSegment(Line source, Line itx1, Line itx2, Coordinate first, Coordinate second)
         {
+            //if(source.Id==itx1.Id || source.Id==itx2.Id || itx1.Id==itx2.Id)
+            //    throw new NotImplementedException("implementation bug.");
             Source = source;
             FirstIntersection = itx1;
             SecondIntersection = itx2;
@@ -506,7 +517,7 @@ namespace SpatialEnrichment
     {
         private Dictionary<LineSegment,Cell> segments; //Maps a segment to its cell neighbor
         private List<LineSegment> segmentOrder;
-        private Coordinate _cOm = null;
+        private Coordinate _cOm;
         private object locker = new object();
 
         private Tuple<double, int, int[]> _mHG;
@@ -523,8 +534,8 @@ namespace SpatialEnrichment
 
         public bool[] InducedLabledVector { get; private set; }
 
-        public IEnumerable<Coordinate> Coordinates { get { return this.segments.Keys.Select(s => s.FirstIntersectionCoord); } }
-        public IEnumerable<LineSegment> Segments { get { return this.segmentOrder; } }
+        public IEnumerable<Coordinate> Coordinates { get { return segments.Keys.Select(s => s.FirstIntersectionCoord); } }
+        public IEnumerable<LineSegment> Segments => this.segmentOrder;
 
         public int[] PointRanks { get; private set; }
 
@@ -543,6 +554,10 @@ namespace SpatialEnrichment
         }
 
         public int MyId { get; set; }
+
+        public Cell(IEnumerable<LineSegment> lineSegments) : this(lineSegments.ToList())
+        {
+        }
 
         public Cell(List<LineSegment> lineSegments)
         {
@@ -716,7 +731,7 @@ namespace SpatialEnrichment
             var crosses = 0;
             foreach (var polyside in this.segments.Keys)
             {
-                if (polyside.CrossesY(coord.Y) && polyside.Source.EvaluateAtY(coord.Y)<coord.X)
+                if (polyside.CrossesY(coord.Y) && polyside.Source.EvaluateAtY(coord.Y)<=coord.X)
                     crosses++;
             }
             var contained = crosses%2 == 1;
@@ -775,8 +790,7 @@ namespace SpatialEnrichment
             }
             return _mHG;
         }
-
-
+        
         
     }
 

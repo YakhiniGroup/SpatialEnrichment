@@ -567,7 +567,6 @@ namespace SpatialEnrichment
             var bestCells = new ConcurrentPriorityQueue<double,Cell>();
             var coordLst = new List<Coordinate>();
             var tskLst = new List<Task>();
-            //var sortLL = new SortedIntersectionData(Lines.Count);
             var cmesh = new CoordMesh(Lines);
             int TryCounter = 0;
             while (cellPQ.Count < numStartCoords && TryCounter < 1000) //cellPQ is a minHeap priotity queue (smaller key is better)
@@ -677,7 +676,7 @@ namespace SpatialEnrichment
             
             //find 'handeness' of first cell wall to pivot (should we turn left or right to contain?)
             var closestLine = OrderedLines.First().Line;
-            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine);
+            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine); //this is a coordinate on the closest interval 
 
             //while adding lines, if no cell yet, or if the chordless cell that contains the pivot coord changes its boundry, continue adding lines.
             Cell prevCell = null;
@@ -693,6 +692,51 @@ namespace SpatialEnrichment
             //GetCellKthNeighbors(prevCell, sortLL);
             return prevCell;
         }
+
+        public Cell ComputeCellFromCoordinateVolatile(Coordinate coord)
+        {
+            //Order points by distance from pivot
+            var sortedDistances = Points.AsParallel()
+                .Select((p, idx) => new { Point = p, Label = PointLabels[idx], PointId = idx, Distance = p.EuclideanDistance(coord) })
+                .OrderBy(t => t.Distance).ToArray();
+
+            //Only lines that impact the order of elements in the binary vector may participate in the cell boundaries.
+            //Since crossing a line may only swap 2 adjacent elements in the vector, and since order in each group makes no difference -
+            //these are lines seperating consecutive groups of 1's and 0's.
+            var relevantLines = new List<Line>();
+            for (var i = 0; i < sortedDistances.Length - 1;)
+            {
+                var consecGroup1 = sortedDistances.Skip(i).TakeWhile(p => p.Label == sortedDistances[i].Label).ToList(); //maps to identically significant neighbors
+                var consecGroup2 = sortedDistances.Skip(i + consecGroup1.Count).TakeWhile(p => p.Label == !sortedDistances[i].Label).ToList();
+                i = i + consecGroup1.Count;
+                relevantLines.AddRange(from pt1 in consecGroup1
+                                       from pt2 in consecGroup2
+                                       select Lines[Line.LineIdFromCoordIds(pt1.PointId, pt2.PointId)]);
+            }
+            var OrderedLines =
+                relevantLines.AsParallel()
+                .Select(l => new { Line = l, Distance = l.DistanceToPoint(coord) })
+                .OrderBy(l => l.Distance)
+                .ToList();
+
+            var closestLine = OrderedLines.First().Line;
+            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine); //this is a coordinate on the closest interval 
+
+            var cm = new CoordMesh(relevantLines);
+            var startSeg = cm.GetSegmentContainingCoordinateOnLine(closestLine.Id, startCoord);
+
+            Cell prevCell = null;
+            var linecount = 0;
+            if (startSeg != null)
+            {
+                var segAngle = LineSegment.GetAngle(coord, startCoord, startCoord, startSeg.SecondIntersectionCoord);
+                var direction = startSeg.IsPositiveLexicographicProgress() ^ (segAngle > 180) ? SegmentCellCovered.Right : SegmentCellCovered.Left;
+                prevCell = CoverCellFromSegment(cm, startSeg, direction);
+            }
+
+            return prevCell;
+        }
+
 
         private Cell CoverCellFromSegment(CoordMesh sortLL, LineSegment startSeg, SegmentCellCovered direction)
         {

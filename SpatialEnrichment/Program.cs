@@ -242,7 +242,7 @@ namespace SpatialEnrichment
             }
             if (save)
                 Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
-                    $@"coords_{StaticConfigParams.filenamesuffix}.csv");
+                    $@"coords_{StaticConfigParams.filenamesuffix}.csv",true);
             return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
