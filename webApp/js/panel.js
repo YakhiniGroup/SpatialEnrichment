@@ -185,7 +185,7 @@ var panel = {
 	exitLoader : function(){
 		$("#progressModal").modal("hide");
 	},
-	updateLoader : function(queryId){
+	updateLoader : function(queryId, finalUpdate){
 		// ajax call to azure function
 		$.ajax({
 			url:"https://spatialenrichmentdatabasequeryfunc.azurewebsites.net/api/HttpTriggerCSharp",
@@ -194,18 +194,25 @@ var panel = {
 			success: function(json){
 				var value = json.Value;
 				var message = json.Message;
+				console.log(value + " , " + message);
 				panel.assignValueToLoader(value);
 				panel.assignMessageToLoader(message);
 				if(JSONobject.isProcessedByServer){
 					//wait 3 second, then update again
-					setTimeout(function(){panel.updateLoader(queryId);}, 3000);
+					setTimeout(function(){panel.updateLoader(queryId, false);}, 3000);
 				}
 				else{
-					panel.exitLoader();
+					if(!finalUpdate){
+						//wait 5 seconds for final update
+						setTimeout(function(){panel.updateLoader(queryId, true);}, 5000);
+					}
+					else{
+						panel.exitLoader();
+					}
 				}
 			},
 			error : function(xhr, status, error){
-				alert("Error : Failure connecting to server\r\n" + "Status : " + xhr.status + "\r\n" + "Message: " + error);
+				alert("Error : Failed to find query\r\n" + "Status : " + xhr.status + "\r\n" + "Message: " + error);
 				panel.exitLoader();
 			},
 			data: JSON.stringify({id : queryId})

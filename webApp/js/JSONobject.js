@@ -23,7 +23,7 @@ var JSONobject = {
 	},
 	initParams : function(){
 		var Actions = $("#configParamsForm_Actions").val();
-		var SkipSlack = 0;
+		var SkipSlack = -2;
 		var Threshold = $("#configParamsForm_Threshold_Ranger").val();
 		var ExecutionTokenId = Math.floor(Math.random() * 10000);
 		JSONobject.params = {
@@ -56,11 +56,10 @@ var JSONobject = {
 			},
 			error : function(xhr, status, error){
 				JSONobject.isProcessedByServer = false;
-				alert("Error : Failure connecting to server\r\n" + "Status : " + xhr.status + "\r\n" + "Message: " + error);
 			},
 			data : JSON.stringify(object)
 		});
-		panel.updateLoader(JSONobject.params.executionTokenId);
+		panel.updateLoader(JSONobject.params.executionTokenId, false);
 	}
 }
 
