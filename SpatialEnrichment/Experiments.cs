@@ -96,9 +96,9 @@ namespace SpatialEnrichment
         /// <summary>
         /// 3d subsample from 50 points 20. run 100 times. compare to opt.
         /// </summary>
-        /// <param name="numcoords"></param>
+        /// <param name="numcoords"></param>a
         /// <param name="numiter"></param>
-        public static void CompareExahustiveWithSubsamplingInput(int numcoords = 50, int subsampleSize = 20, int numiter = 100)
+        public static List<double> CompareExahustiveWithSubsamplingInput(int numcoords = 50, int subsampleSize = 20, int numiter = 100, string suffix="0")
         {
             Config = new ConfigParams("");
             #region init
@@ -111,7 +111,7 @@ namespace SpatialEnrichment
             var coordinates = new List<ICoordinate>();
             var labels = new List<bool>();
             Program.Config = Config;
-            StaticConfigParams.filenamesuffix = "0";
+            StaticConfigParams.filenamesuffix = suffix;
             var res = Program.RandomizeCoordinatesAndSave(numcoords, true);
             coordinates = res.Item1;
             labels = res.Item2;
@@ -154,7 +154,7 @@ namespace SpatialEnrichment
                                                              //alpha is the Bonferonni (union-bound) corrected significance level
             
 
-            using (var fileout = new StreamWriter(@"sample_vs_exhaustive.csv"))
+            using (var fileout = new StreamWriter($"sample_vs_exhaustive_{suffix}.csv"))
                 for (var instanceIter = 1; instanceIter < numiter; instanceIter++)
                 {
                     StaticConfigParams.filenamesuffix = instanceIter.ToString();
@@ -194,8 +194,8 @@ namespace SpatialEnrichment
 
             Console.WriteLine($"Out of {numiter} iterations, spatial enrichment won in {victories} and tied in {ties}.");
             Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
-            File.WriteAllLines("experiment_pvaldiffs.txt", resultPairedDiff.Select(v => v.ToString()).ToArray());
-            //Console.ReadKey();
+            File.WriteAllLines($"experiment_pvaldiffs_{suffix}.txt", resultPairedDiff.Select(v => v.ToString()).ToArray());
+            return resultPairedDiff;
         }
     }
 }
