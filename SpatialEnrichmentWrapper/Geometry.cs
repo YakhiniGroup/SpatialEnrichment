@@ -38,6 +38,8 @@ namespace SpatialEnrichment
                     throw new NotImplementedException("Two dimensional data does not implement get dim >1!");
             }
         }
+        
+        public int GetDimensionality() { return 2; }
 
         public bool Equals(Coordinate other)
         {

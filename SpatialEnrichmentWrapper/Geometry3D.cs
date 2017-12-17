@@ -39,6 +39,8 @@ namespace SpatialEnrichmentWrapper
             }
         }
 
+        public int GetDimensionality() { return 3; }
+
         public bool Equals(Coordinate3D other)
         {
             return (Math.Abs(this.X - other.X) < StaticConfigParams.TOLERANCE) && 

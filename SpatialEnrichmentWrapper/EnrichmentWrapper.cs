@@ -34,12 +34,15 @@ namespace SpatialEnrichmentWrapper
         public List<ISpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
         {
             List<SpatialmHGResult> solutions;
+            Normalizer nrm;
             try
             {
                 var labels = coordinates.Select(t => t.Item3).ToList();
-                var coords = coordinates.Select(t => new Coordinate(t.Item1, t.Item2)).ToList();
+                var coords = coordinates.Select(t => (ICoordinate)new Coordinate(t.Item1, t.Item2)).ToList();
+                nrm = new Normalizer(coords);
+                var normcoords = nrm.Normalize(coords).Select(c=>(Coordinate)c).ToList();
                 InitializeMHG(labels);
-                solutions = Solve2DProblem(coords, labels);
+                solutions = Solve2DProblem(normcoords, labels);
             }
             catch (Exception e)
             {
@@ -47,6 +50,8 @@ namespace SpatialEnrichmentWrapper
                 throw;
             }
             Config.Log.updater?.Wait();
+            foreach (var sol in solutions)
+                sol.Denormalize(nrm);
             return solutions.Cast<ISpatialmHGResult>().ToList();
         }
 
@@ -242,6 +247,14 @@ namespace SpatialEnrichmentWrapper
             toSave.Add(new[] { enrichmentPolygon.First().Item1, enrichmentPolygon.First().Item2 });
             Generics.SaveToCSV(toSave, filename, true);
         }
+
+        public void Denormalize(Normalizer nrm)
+        {
+            var nc = nrm.DeNormalize(new Coordinate(X, Y));
+            X = nc.GetDimension(0);
+            Y = nc.GetDimension(1);
+            enrichmentPolygon = enrichmentPolygon.Select(p => nrm.DeNormalize(new Coordinate(p.Item1, p.Item2))).Select(v => new Tuple<double, double>(v.GetDimension(0), v.GetDimension(1))).ToList();
+        }
     }
 
     public class SpatialmHGResult3D : ISpatialmHGResult
@@ -281,11 +294,23 @@ namespace SpatialEnrichmentWrapper
             toSave.Add(new[] { enrichmentPolygon.First().Item1, enrichmentPolygon.First().Item2, enrichmentPolygon.First().Item3 });
             Generics.SaveToCSV(toSave, filename, true);
         }
+
+        public void Denormalize(Normalizer nrm)
+        {
+            var nc = nrm.DeNormalize(new Coordinate3D(X, Y, Z));
+            X = nc.GetDimension(0);
+            Y = nc.GetDimension(1);
+            Z = nc.GetDimension(2);
+            enrichmentPolygon = enrichmentPolygon.Select(p => nrm.DeNormalize(new Coordinate3D(p.Item1, p.Item2, p.Item3))).Select(v => new Tuple<double, double, double>(v.GetDimension(0), v.GetDimension(1), v.GetDimension(2))).ToList();
+        }
     }
 
 
     public interface ISpatialmHGResult
     {
         void SaveToCSV(string csv);
+        void Denormalize(Normalizer nrm);
     }
+
+    
 }

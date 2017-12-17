@@ -13,5 +13,6 @@ namespace SpatialEnrichmentWrapper
         double EuclideanDistance(ICoordinate pivotCoord);
         string ToString();
         double GetDimension(int dim);
+        int GetDimensionality();
     }
 }
