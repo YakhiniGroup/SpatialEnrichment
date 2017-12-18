@@ -61,7 +61,7 @@ namespace UnitTests
             StaticConfigParams.filenamesuffix = "0";
             var instance = Program.RandomizeCoordinatesAndSave(50, true);
             var instanceData = instance.Item1.Zip(instance.Item2, (a, b) => new {Coord = a, Label = b}).ToList();
-            var grid = Program.GeneratePivotGrid(1000);
+            var grid = Gridding.GeneratePivotGrid(1000);
             int numcovered = 0;
             double bestP = 1.0;
             Parallel.ForEach(grid, pivot =>
@@ -83,7 +83,7 @@ namespace UnitTests
             StaticConfigParams.filenamesuffix = "0";
             var instance = Program.RandomizeCoordinatesAndSave(50, true);
             var instanceData = instance.Item1.Zip(instance.Item2, (a, b) => new { Coord = a, Label = b }).ToList();
-            var grid = Program.GeneratePivotGrid(1000);
+            var grid = Gridding.GeneratePivotGrid(1000);
             int numcovered = 0;
             double bestP = 1.0;
             Parallel.ForEach(grid, pivot =>

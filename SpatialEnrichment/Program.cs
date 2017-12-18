@@ -38,8 +38,12 @@ namespace SpatialEnrichment
                 Console.WriteLine(@"Running sampling comparison experiment");
                 var subsamples = new[] {10, 20, 30};
                 var population = new[] {40, 60, 100};
-                foreach(var nu in subsamples) foreach(var N in population)
-                    Experiments.CompareExahustiveWithSubsamplingInput(N, nu, 50);
+                var counter = 0;
+                foreach(var nu in subsamples)
+                foreach (var N in population)
+                {
+                    Experiments.CompareExahustiveWithSubsamplingInput(N, nu, 50, counter++.ToString());
+                }
                 return;
             }
 
@@ -289,14 +293,8 @@ namespace SpatialEnrichment
             return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
-        public static List<Coordinate> GeneratePivotGrid(int resolution)
-        {
-            const double buffer = 0.1;
-            var res = new List<Coordinate>();
-            for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
-            for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
-                    res.Add(new Coordinate(i,j));
-            return res;
-        }
+        
+
+
     }
 }
