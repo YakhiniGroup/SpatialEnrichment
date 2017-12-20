@@ -192,19 +192,19 @@ namespace SpatialEnrichment
             return new Coordinate(xcoord, ycoord);
         }
 
-        public static Line Bisector(Coordinate a, Coordinate b)
+        public static Line Bisector(Coordinate a, Coordinate b, bool isCounted=true)
         {
             var midPoints = new Coordinate((a.X + b.X) / 2, (a.Y + b.Y) / 2);
             var slope = (a.X - b.X) / (b.Y - a.Y);
             var intercept = midPoints.Y - slope * midPoints.X;
-            return new Line(slope, intercept);
+            return new Line(slope, intercept, isCounted);
         }
 
-        public Line Perpendicular(Coordinate coord)
+        public Line Perpendicular(Coordinate coord, bool isCounted = true)
         {
             var recipSlope = -1.0/this.Slope;
             var perpIntercept = coord.Y - recipSlope*coord.X;
-            return new Line(recipSlope, perpIntercept);
+            return new Line(recipSlope, perpIntercept, isCounted);
         }
 
         public bool Equals(Line other)

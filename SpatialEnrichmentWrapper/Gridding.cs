@@ -36,8 +36,8 @@ namespace SpatialEnrichmentWrapper
             var producer = Task.Run(() => {
                 Parallel.For(0, numsamples, (i) => {
                     var pair = extendedPairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).First();
-                    var bisectorLine = Line.Bisector(pair.Item1, pair.Item2);
-                    var perpendicularLine = bisectorLine.Perpendicular(pair.Item1);
+                    var bisectorLine = Line.Bisector(pair.Item1, pair.Item2, isCounted: false);
+                    var perpendicularLine = bisectorLine.Perpendicular(pair.Item1, isCounted: false);
                     var intersectionCoord = bisectorLine.Intersection(perpendicularLine);
                     Coordinate jitteredPivot = null;
                     
