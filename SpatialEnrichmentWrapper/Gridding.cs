@@ -19,43 +19,29 @@ namespace SpatialEnrichmentWrapper
                 yield return new Coordinate(i, j);
         }
 
-        public static IEnumerable<Coordinate> GenerateEmpricialDensityGrid(long numsamples, List<Tuple<Coordinate,bool>> lableddata, double jitterscale = 0.0001)
+        public static IEnumerable<Coordinate> GenerateEmpricialDensityGrid(long numsamples, List<Tuple<Coordinate,bool>> lableddata, double jitterscale = 1E-5)
         {
             var pairs = (from a in lableddata from b in lableddata
                          where !a.Item1.Equals(b.Item1) && !a.Item2.Equals(b.Item2)
                          select new Tuple<Coordinate, Coordinate>(a.Item1, b.Item1)).ToList();
 
-            var extendedPairs = new List<Tuple<Coordinate, Coordinate, int>>();
-            for (var i = 0; i < 4; i++)
-                foreach (var pair in pairs)
-                    extendedPairs.Add(new Tuple<Coordinate, Coordinate, int>(pair.Item1, pair.Item2, i));
-
-
             var resqueue = new BlockingCollection<Coordinate>(10000);
 
-            var producer = Task.Run(() => {
-                Parallel.For(0, numsamples, (i) => {
-                    var pair = extendedPairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).First();
-                    var bisectorLine = Line.Bisector(pair.Item1, pair.Item2, isCounted: false);
-                    var perpendicularLine = bisectorLine.Perpendicular(pair.Item1, isCounted: false);
-                    var intersectionCoord = bisectorLine.Intersection(perpendicularLine);
-                    Coordinate jitteredPivot = null;
+            //Producer
+            Task.Run(() => {
+                Parallel.For(0, numsamples, (i) =>
+                {
+                    var quartet = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(2).ToList();
+                    var firstpair = quartet.First();
+                    var firstbisectorLine = Line.Bisector(firstpair.Item1, firstpair.Item2, isCounted: false);
+                    var secondpair = quartet.Last();
+                    var secondbisectorLine = Line.Bisector(secondpair.Item1, secondpair.Item2, isCounted: false);
+                    var intersectionCoord = firstbisectorLine.Intersection(secondbisectorLine);
                     
-                    switch (pair.Item3) //determine jitter directionality
-                    {
-                        case 0:
-                            jitteredPivot = new Coordinate(intersectionCoord.X + StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y + StaticConfigParams.rnd.NextDouble() * jitterscale);
-                            break;
-                        case 1:
-                            jitteredPivot = new Coordinate(intersectionCoord.X + StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y - StaticConfigParams.rnd.NextDouble() * jitterscale);
-                            break;
-                        case 2:
-                            jitteredPivot = new Coordinate(intersectionCoord.X - StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y + StaticConfigParams.rnd.NextDouble() * jitterscale);
-                            break;
-                        case 3:
-                            jitteredPivot = new Coordinate(intersectionCoord.X - StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y - StaticConfigParams.rnd.NextDouble() * jitterscale);
-                            break;
-                    }
+                    var jitteredPivot = new Coordinate(
+                        intersectionCoord.X + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale),
+                        intersectionCoord.Y + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale));
+
                     resqueue.Add(jitteredPivot);
                 });
                 resqueue.CompleteAdding();
@@ -63,5 +49,6 @@ namespace SpatialEnrichmentWrapper
             foreach (var item in resqueue.GetConsumingEnumerable())
                 yield return item;
         }
+
     }
 }
