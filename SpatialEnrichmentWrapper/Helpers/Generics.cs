@@ -163,5 +163,39 @@ namespace SpatialEnrichment.Helpers
                     break;
             }
         }
+
     }
+
+
+    public class SafeRandom
+    {
+        private static Random random;
+
+        public SafeRandom()
+        {
+            random = new Random();
+        }
+
+        public SafeRandom(int seed)
+        {
+            random = new Random(seed);
+        }
+
+        public int Next()
+        {
+            lock (random)
+            {
+                return random.Next();
+            }
+        }
+
+        public double NextDouble()
+        {
+            lock (random)
+            {
+                return random.NextDouble();
+            }
+        }
+    }
+
 }

@@ -114,6 +114,11 @@ namespace SpatialEnrichment
             return new Coordinate(StaticConfigParams.rnd.NextDouble(),StaticConfigParams.rnd.NextDouble());
         }
 
+        public Coordinate Jitter(double scale = 0.0001)
+        {
+            return new Coordinate(this.X + (StaticConfigParams.rnd.NextDouble() - 0.5) * scale, this.Y + (StaticConfigParams.rnd.NextDouble() - 0.5) * scale);
+        }
+
     }
 
     public class CoordinateComparer : IEqualityComparer<Coordinate>, IComparer<Coordinate>

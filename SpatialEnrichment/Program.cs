@@ -53,7 +53,7 @@ namespace SpatialEnrichment
                 Console.WriteLine(@"Warning! Current configuration writes cells to CSV - this is SLOW.");
 
             #region init
-            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new Random(1) : new Random();
+            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new SafeRandom(1) : new SafeRandom();
             Config.timer.Start();
             #endregion
 

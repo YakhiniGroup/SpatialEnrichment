@@ -4,12 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SpatialEnrichment;
+using System.Collections.Concurrent;
 
 namespace SpatialEnrichmentWrapper
 {
     public static class Gridding
     {
-        public static IEnumerable<Coordinate> GeneratePivotGrid(int numsamples)
+        public static IEnumerable<Coordinate> GeneratePivotGrid(long numsamples)
         {
             var resolution = Math.Sqrt(numsamples);
             const double buffer = 0.1;
@@ -18,31 +19,49 @@ namespace SpatialEnrichmentWrapper
                 yield return new Coordinate(i, j);
         }
 
-        public static IEnumerable<Coordinate> GenerateEmpricialDensityGrid(int numsamples, List<Coordinate> data)
+        public static IEnumerable<Coordinate> GenerateEmpricialDensityGrid(long numsamples, List<Tuple<Coordinate,bool>> lableddata, double jitterscale = 0.0001)
         {
-            var pairs = (from a in data from b in data where !a.Equals(b) select new Tuple<Coordinate, Coordinate>(a, b)).ToList();
+            var pairs = (from a in lableddata from b in lableddata
+                         where !a.Item1.Equals(b.Item1) && !a.Item2.Equals(b.Item2)
+                         select new Tuple<Coordinate, Coordinate>(a.Item1, b.Item1)).ToList();
 
-            for (var i = 0; i < numsamples; i++)
-            {
-                var pair = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).First();
-                var line = Line.Bisector(pair.Item1, pair.Item2);
-                
-                line.Perpendicular()
+            var extendedPairs = new List<Tuple<Coordinate, Coordinate, int>>();
+            for (var i = 0; i < 4; i++)
+                foreach (var pair in pairs)
+                    extendedPairs.Add(new Tuple<Coordinate, Coordinate, int>(pair.Item1, pair.Item2, i));
 
 
-            }
+            var resqueue = new BlockingCollection<Coordinate>(10000);
 
-            var firstperm = data.OrderBy(a => StaticConfigParams.rnd.NextDouble()).ToList();
-            var firstenum = firstperm.GetEnumerator();
-            var secperm = data.OrderBy(a => StaticConfigParams.rnd.NextDouble()).ToList();
-            var secenum = secperm.GetEnumerator();
-            var res = new List<Coordinate>();
-            for (var i = 0; i < numsamples; i++)
-            {
-                firstenum.MoveNext();
-            }
-            firstenum.Dispose();
-            secenum.Dispose();
+            var producer = Task.Run(() => {
+                Parallel.For(0, numsamples, (i) => {
+                    var pair = extendedPairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).First();
+                    var bisectorLine = Line.Bisector(pair.Item1, pair.Item2);
+                    var perpendicularLine = bisectorLine.Perpendicular(pair.Item1);
+                    var intersectionCoord = bisectorLine.Intersection(perpendicularLine);
+                    Coordinate jitteredPivot = null;
+                    
+                    switch (pair.Item3) //determine jitter directionality
+                    {
+                        case 0:
+                            jitteredPivot = new Coordinate(intersectionCoord.X + StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y + StaticConfigParams.rnd.NextDouble() * jitterscale);
+                            break;
+                        case 1:
+                            jitteredPivot = new Coordinate(intersectionCoord.X + StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y - StaticConfigParams.rnd.NextDouble() * jitterscale);
+                            break;
+                        case 2:
+                            jitteredPivot = new Coordinate(intersectionCoord.X - StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y + StaticConfigParams.rnd.NextDouble() * jitterscale);
+                            break;
+                        case 3:
+                            jitteredPivot = new Coordinate(intersectionCoord.X - StaticConfigParams.rnd.NextDouble() * jitterscale, intersectionCoord.Y - StaticConfigParams.rnd.NextDouble() * jitterscale);
+                            break;
+                    }
+                    resqueue.Add(jitteredPivot);
+                });
+                resqueue.CompleteAdding();
+            });
+            foreach (var item in resqueue.GetConsumingEnumerable())
+                yield return item;
         }
     }
 }

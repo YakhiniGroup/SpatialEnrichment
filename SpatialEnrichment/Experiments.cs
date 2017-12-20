@@ -19,7 +19,7 @@ namespace SpatialEnrichment
         {
             Config = new ConfigParams("");
             #region init
-            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new Random(1) : new Random();
+            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new SafeRandom(1) : new SafeRandom();
             Config.timer.Start();
             #endregion
             //Load coordinates and labels
@@ -102,11 +102,12 @@ namespace SpatialEnrichment
         {
             Config = new ConfigParams("");
             #region init
-            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new Random(1) : new Random();
+            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new SafeRandom(1) : new SafeRandom();
             Config.timer.Start();
             #endregion
             //Load coordinates and labels
             var resultPairedDiff = new List<double>();
+            var extraAnalyses = new List<string>();
             int victories = 0, ties = 0;
             var coordinates = new List<ICoordinate>();
             var labels = new List<bool>();
@@ -140,6 +141,7 @@ namespace SpatialEnrichment
                 numcoords -= filterCount;
             }
 
+            var instanceDataCoords = coordinates.Zip(labels, (a, b) => new Tuple<Coordinate, bool>((Coordinate)a, b)).ToList();
             var instanceData = coordinates.Zip(labels, (a, b) => new Tuple<double, double, bool>(a.GetDimension(0), a.GetDimension(1), b)).ToList();
             Config.SKIP_SLACK = -1000;
             var ew = new EnrichmentWrapper(Config);
@@ -152,7 +154,6 @@ namespace SpatialEnrichment
             mHGJumper.Initialize(ones, numcoords - ones);
             mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;// / Cellcount; //for bonferonni
                                                              //alpha is the Bonferonni (union-bound) corrected significance level
-            
 
             using (var fileout = new StreamWriter($"sample_vs_exhaustive_{suffix}.csv"))
                 for (var instanceIter = 1; instanceIter < numiter; instanceIter++)
@@ -160,7 +161,6 @@ namespace SpatialEnrichment
                     StaticConfigParams.filenamesuffix = instanceIter.ToString();
                     Console.WriteLine("File {0}", instanceIter);
 
-                    Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
                     var sampleCoords = coordinates
                         .Zip(labels, (a, b) => new {Coords = a, Labels = b, Rand = StaticConfigParams.rnd.Next()})
                         .OrderBy(v => v.Rand).Take(subsampleSize).ToList();
@@ -172,6 +172,11 @@ namespace SpatialEnrichment
                         Generics.SaveToCSV(sampleCoords.Select(t=> t.Coords.ToString() + "," + Convert.ToDouble(t.Labels)),
                             $@"coords_{StaticConfigParams.filenamesuffix}.csv");
 
+                    ones = sampleCoords.Count(l => l.Labels);
+                    linecount = ones * (subsampleSize - ones);
+                    Config.Cellcount = ((long)linecount * (linecount - 1)) / 2.0 + linecount + 1;
+                    
+                    Console.WriteLine(@"Starting work on {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
 
                     mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
                     Tesselation T = new Tesselation(sampleCoords.Select(v => (Coordinate)v.Coords).ToList(), sampleCoords.Select(v => v.Labels).ToList(), null, Config)
@@ -181,7 +186,7 @@ namespace SpatialEnrichment
                     };
                     var topResults = T.GradientSkippingSweep(numStartCoords: 20, numThreads: Environment.ProcessorCount - 1).First();
                     Line.Reset();
-                    fileout.WriteLine($"{resultsExhaustive.pvalue}, {topResults.mHG.Item1}");
+                    
 
                     if (resultsExhaustive.pvalue < topResults.mHG.Item1)
                         victories++;
@@ -189,13 +194,33 @@ namespace SpatialEnrichment
                         ties++;
                     else
                         Console.WriteLine($"Debug me");
-                    resultPairedDiff.Add(Math.Log10(topResults.mHG.Item1) - Math.Log10(resultsExhaustive.pvalue));
+                    var pdiff = Math.Log10(topResults.mHG.Item1) - Math.Log10(resultsExhaustive.pvalue);
+                    resultPairedDiff.Add(pdiff);
+
+                    mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
+                    Console.Write($"Uniform grid strategy @{Config.Cellcount} pivots... ");
+                    var uniformGridPivot = Gridding.GeneratePivotGrid(Convert.ToInt64(Config.Cellcount)).AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
+                    Console.WriteLine($"p={uniformGridPivot:e}");
+                    Console.Write($"Empirical grid strategy @{Config.Cellcount} pivots... ");
+                    mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
+                    var empiricalGridPivot = Gridding.GenerateEmpricialDensityGrid(Convert.ToInt64(Config.Cellcount), instanceDataCoords).AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
+                    Console.WriteLine($"p={empiricalGridPivot:e}");
+                    //extraAnalyses.Add($"{-Math.Log10(resultsExhaustive.pvalue)}, {-Math.Log10(topResults.mHG.Item1)}, {uniformGridPivot}, {empiricalGridPivot}");
+                    fileout.WriteLine($"{-Math.Log10(resultsExhaustive.pvalue)}, {-Math.Log10(topResults.mHG.Item1)}, {uniformGridPivot}, {empiricalGridPivot}");
+
                 }
 
             Console.WriteLine($"Out of {numiter} iterations, spatial enrichment won in {victories} and tied in {ties}.");
             Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
-            File.WriteAllLines($"experiment_pvaldiffs_{suffix}.txt", resultPairedDiff.Select(v => v.ToString()).ToArray());
+            //File.WriteAllLines($"experiment_pvaldiffs_{suffix}.txt", resultPairedDiff.Select(v => v.ToString()).ToArray());
+            //File.WriteAllLines($"experimentsAll_{suffix}.txt", extraAnalyses);
             return resultPairedDiff;
+        }
+        public static double EnrichmentAtPivot(List<Tuple<Coordinate, bool>> data, Coordinate pivot)
+        {
+            var binvec = data.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2).ToArray();
+            var res = mHGJumper.minimumHypergeometric(binvec);
+            return res.Item1;
         }
     }
 }

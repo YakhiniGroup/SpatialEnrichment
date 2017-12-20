@@ -41,7 +41,7 @@ namespace SpatialEnrichmentWrapper
         public static Type RandomInstanceType = typeof(Coordinate); //Coordinate3D
         public static bool ComputeSanityChecks = false;
         public static string filenamesuffix = "";
-        public static Random rnd = new Random();
+        public static SafeRandom rnd = new SafeRandom();
     }
 
     public class ConfigParams
