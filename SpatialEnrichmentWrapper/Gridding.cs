@@ -5,30 +5,45 @@ using System.Text;
 using System.Threading.Tasks;
 using SpatialEnrichment;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace SpatialEnrichmentWrapper
 {
-    public static class Gridding
+    public class Gridding
     {
-        public static IEnumerable<Coordinate> GeneratePivotGrid(long numsamples)
+        private Task producer;
+        private BlockingCollection<Coordinate> pivots;
+        private IEnumerator<Coordinate> elementEnumerator;
+        public Coordinate NextPivot => elementEnumerator.MoveNext() ? elementEnumerator.Current : null;
+
+        public Gridding()
         {
-            var resolution = Math.Sqrt(numsamples);
-            const double buffer = 0.1;
-            for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
-            for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
-                yield return new Coordinate(i, j);
+            pivots = new BlockingCollection<Coordinate>(10000);
+            elementEnumerator = pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
-        public static IEnumerable<Coordinate> GenerateEmpricialDensityGrid(long numsamples, List<Tuple<Coordinate,bool>> lableddata, double jitterscale = 1E-5)
+        public void GeneratePivotGrid(long numsamples)
         {
-            var pairs = (from a in lableddata from b in lableddata
-                         where !a.Item1.Equals(b.Item1) && !a.Item2.Equals(b.Item2)
-                         select new Tuple<Coordinate, Coordinate>(a.Item1, b.Item1)).ToList();
+            producer = Task.Run(() =>
+            {
+                var resolution = Math.Sqrt(numsamples);
+                const double buffer = 0.1;
+                for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
+                for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
+                    pivots.Add(new Coordinate(i, j));
+                pivots.CompleteAdding();
+            });
+        }
 
-            var resqueue = new BlockingCollection<Coordinate>(10000);
-
-            //Producer
-            Task.Run(() => {
+        public void GenerateEmpricialDensityGrid(long numsamples, List<Tuple<Coordinate,bool>> lableddata, double jitterscale = 1E-5)
+        {
+            producer = Task.Run(() =>
+            {
+                var pairs = new List<Tuple<Coordinate, Coordinate>>();
+                for (var i = 0; i < lableddata.Count-1; i++)
+                for (var j = i+1; j < lableddata.Count; j++)
+                    if (lableddata[i].Item2 != lableddata[j].Item2)
+                        pairs.Add(new Tuple<Coordinate, Coordinate>(lableddata[i].Item1, lableddata[j].Item1));
                 Parallel.For(0, numsamples, (i) =>
                 {
                     var quartet = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(2).ToList();
@@ -42,12 +57,16 @@ namespace SpatialEnrichmentWrapper
                         intersectionCoord.X + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale),
                         intersectionCoord.Y + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale));
 
-                    resqueue.Add(jitteredPivot);
+                    pivots.Add(jitteredPivot);
                 });
-                resqueue.CompleteAdding();
+                pivots.CompleteAdding();
             });
-            foreach (var item in resqueue.GetConsumingEnumerable())
-                yield return item;
+        }
+
+        public IEnumerable<Coordinate> GetPivots()
+        {
+            foreach (var el in pivots.GetConsumingEnumerable())
+                yield return el;
         }
 
     }

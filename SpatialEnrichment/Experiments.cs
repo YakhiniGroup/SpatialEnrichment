@@ -199,11 +199,17 @@ namespace SpatialEnrichment
 
                     mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
                     Console.Write($"Uniform grid strategy @{Config.Cellcount} pivots... ");
-                    var uniformGridPivot = Gridding.GeneratePivotGrid(Convert.ToInt64(Config.Cellcount)).AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
+                    var uniformGridFactory = new Gridding();
+                    uniformGridFactory.GeneratePivotGrid(Convert.ToInt64(Config.Cellcount));
+                    var uniformGridPivotlst = uniformGridFactory.GetPivots().ToList();
+                    var uniformGridPivot = uniformGridPivotlst.AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
                     Console.WriteLine($"p={uniformGridPivot:e}");
                     Console.Write($"Empirical grid strategy @{Config.Cellcount} pivots... ");
                     mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
-                    var empiricalGridPivot = Gridding.GenerateEmpricialDensityGrid(Convert.ToInt64(Config.Cellcount), instanceDataCoords).AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
+                    var empiricalGridFactory = new Gridding();
+                    empiricalGridFactory.GenerateEmpricialDensityGrid(Convert.ToInt64(Config.Cellcount), instanceDataCoords);
+                    var empiricalGridPivotlst = empiricalGridFactory.GetPivots().ToList();
+                    var empiricalGridPivot = empiricalGridPivotlst.AsParallel().Max(p => -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)));
                     Console.WriteLine($"p={empiricalGridPivot:e}");
                     //extraAnalyses.Add($"{-Math.Log10(resultsExhaustive.pvalue)}, {-Math.Log10(topResults.mHG.Item1)}, {uniformGridPivot}, {empiricalGridPivot}");
                     fileout.WriteLine($"{-Math.Log10(resultsExhaustive.pvalue)}, {-Math.Log10(topResults.mHG.Item1)}, {uniformGridPivot}, {empiricalGridPivot}");
