@@ -17,6 +17,8 @@ namespace SpatialEnrichment.Helpers
 
         public static void SaveToCSV(IEnumerable<string> coords, string outfile, bool wait = false)
         {
+            if (!Directory.Exists(Path.GetDirectoryName(Path.GetFullPath(outfile))))
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outfile)));
             var tsk = Task.Run(() =>
             {
                 File.WriteAllText(outfile, string.Join("\n", coords.Select(c => c.ToString())));
@@ -74,5 +76,126 @@ namespace SpatialEnrichment.Helpers
 
             return -1;
         }
+
+
+        public static List<TSource> ToList<TSource>(this IEnumerable<TSource> source, int count)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (count < 0) throw new ArgumentOutOfRangeException("count");
+            var list = new List<TSource>(count);
+            foreach (var item in source)
+            {
+                list.Add(item);
+            }
+            return list;
+        }
+
+        public static TSource[] ToArray<TSource>(this IEnumerable<TSource> source, int count)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (count < 0) throw new ArgumentOutOfRangeException("count");
+            var array = new TSource[count];
+            int i = 0;
+            foreach (var item in source)
+            {
+                array[i++] = item;
+            }
+            return array;
+        }
     }
+
+    public class Normalizer
+    {
+        private int dim;
+        private double[] botranges;
+        private double[] topranges;
+        private double[] denom => topranges.Zip(botranges, (a, b) => a - b).ToArray();
+        public Normalizer(List<ICoordinate> coords)
+        {
+            dim = coords.First().GetDimensionality();
+            botranges = new double[dim];
+            topranges = new double[dim];
+            for (var i = 0; i < dim; i++)
+            {
+                botranges[i] = coords.Min(c => c.GetDimension(i));
+                topranges[i] = coords.Max(c => c.GetDimension(i));
+            }
+        }
+
+        public IEnumerable<ICoordinate> Normalize(List<ICoordinate> coords)
+        {
+            switch (dim)
+            {
+                case 2:
+                    foreach (var c in coords)
+                        yield return new Coordinate((c.GetDimension(0) - botranges[0]) / denom[0], (c.GetDimension(1) - botranges[1]) / denom[1]);
+                    break;
+                case 3:
+                    foreach (var c in coords)
+                        yield return new Coordinate3D((c.GetDimension(0) - botranges[0]) / denom[0], (c.GetDimension(1) - botranges[1]) / denom[1], (c.GetDimension(2) - botranges[2]) / denom[2]);
+                    break;
+            }
+        }
+
+        public ICoordinate DeNormalize(ICoordinate c)
+        {
+            switch (dim)
+            {
+                case 2:
+                    return new Coordinate(c.GetDimension(0) * denom[0] + botranges[0], c.GetDimension(1) * denom[1] + botranges[1]);
+                case 3:
+                    return new Coordinate3D(c.GetDimension(0) * denom[0] + botranges[0], c.GetDimension(1) * denom[1] + botranges[1], c.GetDimension(2) * denom[2] + botranges[2]);
+            }
+            return null;
+        }
+
+        public IEnumerable<ICoordinate> DeNormalize(List<ICoordinate> coords)
+        {
+            switch (dim)
+            {
+                case 2:
+                    foreach (var c in coords)
+                        yield return new Coordinate(c.GetDimension(0) * denom[0] + botranges[0], c.GetDimension(1) * denom[1] + botranges[1]);
+                    break;
+                case 3:
+                    foreach (var c in coords)
+                        yield return new Coordinate3D(c.GetDimension(0) * denom[0] + botranges[0], c.GetDimension(1) * denom[1] + botranges[1], c.GetDimension(2) * denom[2] + botranges[2]);
+                    break;
+            }
+        }
+
+    }
+
+
+    public class SafeRandom
+    {
+        private static Random random;
+
+        public SafeRandom()
+        {
+            random = new Random();
+        }
+
+        public SafeRandom(int seed)
+        {
+            random = new Random(seed);
+        }
+
+        public int Next()
+        {
+            lock (random)
+            {
+                return random.Next();
+            }
+        }
+
+        public double NextDouble()
+        {
+            lock (random)
+            {
+                return random.NextDouble();
+            }
+        }
+    }
+
 }

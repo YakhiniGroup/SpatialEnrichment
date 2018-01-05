@@ -5,6 +5,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ActiveDebugProfile>SpatialEnrichmnet</ActiveDebugProfile>
+    <_LastSelectedProfileId>C:\Users\user\Documents\Asaf\AzureFunc\SpatialEnrichmnet\SpatialEnrichmnet\Properties\PublishProfiles\AzureFunctionsProfile.pubxml</_LastSelectedProfileId>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>

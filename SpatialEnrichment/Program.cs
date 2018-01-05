@@ -8,27 +8,52 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
 
 namespace SpatialEnrichment
 {
-    class Program
+    public class Program
     {
-        static ConfigParams Config;
+        public static ConfigParams Config;
         static void Main(string[] args)
         {
+            var options = new CommandlineParameters();
+            var isValid = Parser.Default.ParseArgumentsStrict(args, options);
+            
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 7;
-            Config = new ConfigParams();
+            var numcoords = 300;
+            Config = new ConfigParams("");
+
+            if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
+            {
+                Console.WriteLine(@"Running pivot comparison experiment");
+                Experiments.CompareExhaustiveWithPivots(numcoords, numiter:30);
+                return;
+            }
+            if ((Config.ActionList & Actions.Experiment_SampleLines) != 0)
+            {
+                Console.WriteLine(@"Running sampling comparison experiment");
+                var subsamples = new[] {10, 20, 30};
+                var population = new[] {40, 60, 100};
+                var counter = 0;
+                foreach(var nu in subsamples)
+                foreach (var N in population)
+                {
+                    Experiments.CompareExahustiveWithSubsamplingInput(N, nu, 50, counter++.ToString());
+                }
+                return;
+            }
+
             if(Config.SKIP_SLACK != 0)
                 Console.WriteLine(@"Warning! Current configuration uses CONST_SKIP_SLACK={0}", Config.SKIP_SLACK);
             if (StaticConfigParams.WriteToCSV)
                 Console.WriteLine(@"Warning! Current configuration writes cells to CSV - this is SLOW.");
 
             #region init
-            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new Random(1) : new Random();
+            StaticConfigParams.rnd = (Config.ActionList & Actions.Program_RandomConstSeed) != 0 ? new SafeRandom(1) : new SafeRandom();
             Config.timer.Start();
             #endregion
 
@@ -49,21 +74,29 @@ namespace SpatialEnrichment
                     file.Delete();
             }
             //Load coordinates and labels
+            var infile = Path.GetFileNameWithoutExtension(args.Length>0?args[0]:"");
             var identities = new List<string>();
-
             for (var instanceIter = 0; instanceIter < 1; instanceIter++)
             {
                 var coordinates = new List<ICoordinate>();
-                var labels = new List<bool>();
+                List<bool> labels = null;
                 StaticConfigParams.filenamesuffix = instanceIter.ToString();
                 Console.WriteLine("File {0}",instanceIter);
-                if (args.Length>0) 
-                    if(File.Exists(args[0]))
-                        LoadCoordinatesFromFile(args, ref numcoords, coordinates, labels, identities, StaticConfigParams.rnd);
+                if (args.Length > 0)
+                    if (File.Exists(args[0]))
+                    {
+                        var res = LoadCoordinatesFromFile(args, ref numcoords, identities);
+                        coordinates = res.Item1;
+                        labels = res.Item2;
+                    }
                     else
                         throw new ArgumentException("Input file not found!");
                 else
-                    RandomizeCoordinatesAndSave(numcoords, coordinates, StaticConfigParams.rnd, labels);
+                {
+                    var res = RandomizeCoordinatesAndSave(numcoords);
+                    coordinates = res.Item1;
+                    labels = res.Item2;
+                }
 
                 var zeros = labels.Count(l => l == false);
                 var filterCount = (int)(Config.FilterKFurthestZeros * zeros);
@@ -112,8 +145,9 @@ namespace SpatialEnrichment
                 {
                     Config.Cellcount += MathExtensions.Binomial(linecount, 3);
                     Console.WriteLine(@"Projecting 3D problem to collection of 2D {0} coordinates with {1} 1's (|cells|={2:n0}, alpha={3}).", numcoords, ones, Config.Cellcount, mHGJumper.optHGT);
-                    results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels, 
-                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1), a.GetDimension(2), b)).ToList());
+                    results = ew.SpatialmHGWrapper3D(coordinates.Zip(labels,
+                        (a, b) => new Tuple<double, double, double, bool>(a.GetDimension(0), a.GetDimension(1),
+                            a.GetDimension(2), b)).ToList(), options.BatchMode);
                 }
                 else if (coordType == typeof(Coordinate))
                 {
@@ -123,12 +157,18 @@ namespace SpatialEnrichment
                 }
                 for (var resid = 0; resid < results.Count; resid++)
                 {
-                    results[resid].SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", resid, StaticConfigParams.filenamesuffix));
+                    results[resid].SaveToCSV($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv");
+                }
+                using (var outfile = new StreamWriter($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv"))
+                    foreach (var res in Config.mHGlist.Where(t => t != null))
+                        outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
+                if (options.BatchMode)
+                {
+                    AzureBatchExecution.UploadFileToContainer($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
+                    for (var resid = 0; resid < results.Count; resid++)
+                        AzureBatchExecution.UploadFileToContainer($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
                 }
             }
-            using (var outfile = new StreamWriter("mhglist.csv"))
-                foreach (var res in Config.mHGlist.Where(t=>t!=null))
-                    outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
 
             //Finalize
             if (args.Length == 0 || Debugger.IsAttached)
@@ -136,9 +176,10 @@ namespace SpatialEnrichment
                 Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
                 Console.ReadKey();
             }
+            
         }
 
-        private static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
+        public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
         {
             Console.WriteLine(@"Covering original points with mHG.");
             int ptcount = 0;
@@ -166,60 +207,60 @@ namespace SpatialEnrichment
             wrtr.Wait();
         }
 
-        private static void RandomizeCoordinatesAndSave(int numcoords, List<ICoordinate> coordinates, Random rnd, List<bool> labels)
+        public static Tuple<List<ICoordinate>, List<bool>> RandomizeCoordinatesAndSave(int numcoords, bool save=true)
         {
-            if ((Config.ActionList & Actions.Instance_Uniform) != 0)
-            {
-                for (var i = 0; i < numcoords; i++)
+            List<ICoordinate> coordinates = new List<ICoordinate>();
+            List<bool> labels = new List<bool>();
+            bool instance_created = false;
+            while(!instance_created)
+            { 
+                if ((Config.ActionList & Actions.Instance_Uniform) != 0)
                 {
-                    if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                        coordinates.Add(Coordinate.MakeRandom());
-                    else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                        coordinates.Add(Coordinate3D.MakeRandom());
-                    labels.Add(rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
-                }        
-            }
-            if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
-            {
-                for (var i = 0; i < numcoords; i++)
+                    for (var i = 0; i < numcoords; i++)
+                    {
+                        if(StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                            coordinates.Add(Coordinate.MakeRandom());
+                        else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
+                            coordinates.Add(Coordinate3D.MakeRandom());
+                        labels.Add(StaticConfigParams.rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
+                    }        
+                }
+                if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
+                {
+                    for (var i = 0; i < numcoords; i++)
+                        if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
+                            coordinates.Add(Coordinate.MakeRandom());
+                        else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
+                            coordinates.Add(Coordinate3D.MakeRandom());
+                    ICoordinate pivotCoord = null;
                     if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                        coordinates.Add(Coordinate.MakeRandom());
+                        pivotCoord = Coordinate.MakeRandom();
                     else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                        coordinates.Add(Coordinate3D.MakeRandom());
-                ICoordinate pivotCoord = null;
-                if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
-                    pivotCoord = Coordinate.MakeRandom();
-                else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
-                    pivotCoord = Coordinate3D.MakeRandom();
-                var posIds =
-                    new HashSet<int>(
-                        coordinates.Select((t, idx) => new {Idx = idx, Dist = t.EuclideanDistance(pivotCoord)})
-                            .OrderBy(t => t.Dist)
-                            .Take((int) ((1- StaticConfigParams.CONST_NEGATIVELABELRATE)*numcoords))
-                            .Select(t => t.Idx));
-                for (var i = 0; i < numcoords; i++)
-                    labels.Add(posIds.Contains(i));
+                        pivotCoord = Coordinate3D.MakeRandom();
+
+                    var prPos = (int) Math.Round((1.0 - StaticConfigParams.CONST_NEGATIVELABELRATE) * numcoords);
+                    mHGJumper.Initialize(prPos, numcoords - prPos);
+                    coordinates = coordinates.OrderBy(t => t.EuclideanDistance(pivotCoord)).ToList();
+                    labels = mHGJumper.SampleSignificantEnrichmentVector(1e-3).ToList();
+                    Console.WriteLine($"Instantiated sample with p={mHGJumper.minimumHypergeometric(labels.ToArray()).Item1:e} around pivot {pivotCoord.ToString()}");
+                    mHGJumper.optHGT = 0.05;
+                }
+                instance_created = labels.Any();
             }
-            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
-                $@"coords_{StaticConfigParams.filenamesuffix}.csv");
+            if (save)
+                Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => a.ToString() +","+ Convert.ToDouble(b)),
+                    $@"coords_{StaticConfigParams.filenamesuffix}.csv",true);
+            return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
-        private static void PlantEnrichmentAndSave(int numcoords, List<Coordinate> coordinates, Random rnd, List<bool> labels)
-        {
-            for (var i = 0; i < numcoords; i++)
-            {
-                coordinates.Add(new Coordinate(rnd.NextDouble(), rnd.NextDouble()));
-                var dist = coordinates.Last().EuclideanDistance(new Coordinate(0, 0));
-                labels.Add(rnd.NextDouble() > 1.0 - (1.0 / dist)); //verify this
-            }
-            Generics.SaveToCSV(coordinates.Zip(labels, (a, b) => new[] { a.X, a.Y, Convert.ToDouble(b) }).ToList(), @"coords.csv");
-        }
-
-        private static void LoadCoordinatesFromFile(string[] args, ref int numcoords, List<ICoordinate> coordinates,
-            List<bool> labels, List<string> identities, Random rnd)
+        
+        private static Tuple<List<ICoordinate>, List<bool>> LoadCoordinatesFromFile(string[] args, ref int numcoords, List<string> identities)
         {
             var lines = File.ReadLines(args[0]).Select(l => l.Split(','));
             numcoords = 0;
+            List<ICoordinate> coordinates = new List<ICoordinate>();
+            List<bool> labels = new List<bool>();
+
             foreach (var line in lines)
             {
                 numcoords ++;
@@ -246,11 +287,14 @@ namespace SpatialEnrichment
                 else if (line.Length == 2)
                 {
                     coordinates.Add(new Coordinate(Convert.ToDouble(line[0]), Convert.ToDouble(line[1])));
-                    labels.Add(rnd.NextDouble() > 0.5);
+                    labels.Add(StaticConfigParams.rnd.NextDouble() > 0.5);
                 }
             }
+            return new Tuple<List<ICoordinate>, List<bool>>(coordinates, labels);
         }
 
         
+
+
     }
 }

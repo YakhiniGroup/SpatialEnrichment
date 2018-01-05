@@ -36,6 +36,12 @@ namespace SpatialEnrichment.Helpers
         
         public static void Initialize(int ones, int zeros)
         {
+            optHGT = 0.05;
+            if (Ones == ones && Zeros == zeros && HGTmat != null)
+            {
+                return; //this was pre-initialized sometime
+            }
+
             Ones = ones;
             Zeros = zeros;
             var N = zeros + ones;
@@ -76,12 +82,12 @@ namespace SpatialEnrichment.Helpers
                     scoreToPval.Add(runsum);
                 }
             }
-            TotalPaths = pathCounting(-0.1); //Todo: should be N choose B
+            TotalPaths = pathCounting(-0.1, out var pMat); //Todo: should be N choose B
             var tscoremap = new ConcurrentDictionary<double,double>();
             Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);
             Parallel.ForEach(scoreToPval, score =>
             {
-                var pval = 1.0 - (pathCounting(score) / TotalPaths);
+                var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
                 tscoremap.AddOrUpdate(score, pval, (a, b) => pval);
             });
             ScoreMap = tscoremap.ToDictionary(t => t.Key, t => t.Value);
@@ -105,14 +111,66 @@ namespace SpatialEnrichment.Helpers
             return hgt1;
         }
 
+
+
+        /// <summary>
+        /// Guarantees *at least* a pValThresh mHG significance boolean vector
+        /// </summary>
+        /// <param name="pValThresh"></param>
+        /// <returns></returns>
+        public static bool[] SampleSignificantEnrichmentVector(double pValThresh = 0.05)
+        {
+            var outvec = new List<bool>();
+            pathCounting(-1, out var pathCountMat);
+            var pathList = new List<Tuple<int, int, double, double>>();
+            for (var i = 0; i < Zeros + 1; i++)
+            for (var j = 0; j < Ones + 1; j++)
+                if(ScoreMap[HGTmat[i, j]] <= pValThresh)
+                    pathList.Add(new Tuple<int, int, double, double>(i,j, pathCountMat[i,j], ScoreMap[HGTmat[i, j]]));
+
+            var pathCountSum = pathList.Sum(v => Math.Log10(v.Item3));
+            var rnd = new Random();
+            var selection = rnd.NextDouble() * pathCountSum;
+            double pathCountCumsum = 0.0;
+            var item = pathList.OrderByDescending(v => v.Item3).SkipWhile(v => (pathCountCumsum += Math.Log10(v.Item3)) < selection).First();
+
+            for (var k = 0; k < item.Item1; k++) //zerosInThresh
+                outvec.Add(false);
+            for (var k = 0; k < item.Item2; k++) //onesInThresh
+                outvec.Add(true);
+            outvec = outvec.OrderBy(v => StaticConfigParams.rnd.Next()).ToList(); 
+
+            //Select remaining uniformly in vector
+            var remainingOnes = Ones - item.Item2;
+            var remainingZeros = Zeros - item.Item1;
+            for (var k = 0; k < (Ones + Zeros - item.Item1 - item.Item2); k++)
+            {
+                var nextBool = StaticConfigParams.rnd.NextDouble() < (remainingOnes / remainingZeros) ? true : false;
+                switch (nextBool)
+                {
+                    case true:
+                        remainingOnes--;
+                        break;
+                    case false:
+                        remainingZeros--;
+                        break;
+                }
+                outvec.Add(nextBool);
+            }
+
+            return outvec.ToArray();
+        }
+
+
+
         /// <summary>
         /// Counts with dynamic program the number of paths that dont go through a HGT score.
         /// </summary>
         /// <param name="hgtScore"></param>
         /// <returns></returns>
-        public static double pathCounting(double hgtScore, bool upper = false)
+        public static double pathCounting(double hgtScore, out double[,] pMat)
         {
-            var pMat = new double[Zeros + 1, Ones + 1];
+            pMat = new double[Zeros + 1, Ones + 1];
             //There is exactly one path that travel on edges
             for (var i = 0; i < Zeros + 1; i++)
                 pMat[i, 0] = HGTmat[i, 0] > hgtScore ? 1 : 0;
@@ -134,15 +192,14 @@ namespace SpatialEnrichment.Helpers
             var N = tN > 0 ? tN : binVec.Length;
             var K = tB > 0 ? tB : binVec.Sum(val => val ? 1 : 0);
             var B = tB > 0 ? tB : binVec.Sum(val => !val ? 1 : 0);
-            var currHG = 1.0;
             var currHGT = 1.0;
             var mHGT = 1.1;
-            var index = 0;
+            var currIndex = 0;
             var k = 0;
-            //var OptDist = Ones;
+            //OptDistVec is a vector that counts for each '1' in the binary vector the minimum number of 1's needed directly after it for a significant p-value
             var OptDistVec = new int[Ones+1];
             for (var i = 0; i < Ones + 1; i++)
-                OptDistVec[i] = Ones+1; // default max step size (int.maxvalue)
+                OptDistVec[i] = Ones; // default max step size (int.maxvalue)
             for (var i = 0; i < Ones + 1; i++) if (HGTmat[1, i] <= optHGT.Value) OptDistVec[0] = Math.Min(OptDistVec[0], i);
             for (var n = 0; n < binVec.Length; n++)
             {
@@ -153,7 +210,7 @@ namespace SpatialEnrichment.Helpers
                     //currHGT = ScoreMap[currHG];
                     if (currHGT < mHGT)
                     {
-                        index = n;
+                        currIndex = n;
                         mHGT = currHGT;
                     }
                     //check distance to optimum
@@ -162,7 +219,6 @@ namespace SpatialEnrichment.Helpers
                         for (var i = k; i < Ones+1; i++)
                             if (HGTmat[n - k + 1, i] <= optHGT.Value)
                                 OptDistVec[k] = Math.Min(OptDistVec[k], i - k);
-                                //OptDist = Math.Min(OptDist, i - k);
                     }
                     else
                     {
@@ -171,11 +227,7 @@ namespace SpatialEnrichment.Helpers
                     }
                 }
             }
-            /*
-            if (Equals(mHGT, optHGT)) //we are at a potential local optimum, tread carefully
-                OptDist = 1;
-            */
-            for (var i = 0; i < Ones; i++) OptDistVec[i] = OptDistVec[i] > Ones ? 1 : OptDistVec[i];
+            //for (var i = 0; i < Ones; i++) if(OptDistVec[i] > Ones) OptDistVec[i] = 1; //this happens when we cannot fulfil the required number of ones at this threshold.
             double pval = -1;
             switch (correctMultiHypothesis)
             {
@@ -193,7 +245,7 @@ namespace SpatialEnrichment.Helpers
                     break;
             }
 
-            return new Tuple<double, int, int[]>(pval, index + 1, OptDistVec);
+            return new Tuple<double, int, int[]>(pval, currIndex + 1, OptDistVec);
         }
 
         #region mHG privates

@@ -22,8 +22,8 @@ namespace SpatialEnrichment
         {
             if (double.IsNaN(x) || double.IsNaN(y) || double.IsInfinity(x) || double.IsInfinity(y))
                 throw new ApplicationException("Bad coordinate values");
-            X = x;
-            Y = y;
+            X = x>0 ? Math.Min(x, int.MaxValue / 1000.0) : Math.Max(x, int.MinValue / 1000.0);
+            Y = y>0 ? Math.Min(y, int.MaxValue / 1000.0) : Math.Max(y, int.MinValue / 1000.0);
         }
 
         public double GetDimension(int dim)
@@ -39,6 +39,13 @@ namespace SpatialEnrichment
             }
         }
 
+        public double Norm()
+        {
+            return Math.Sqrt(X * X + Y * Y);
+        }
+
+        public int GetDimensionality() { return 2; }
+
         public bool Equals(Coordinate other)
         {
             return (Math.Abs(this.X - other.X) < StaticConfigParams.TOLERANCE) && (Math.Abs(this.Y - other.Y) < StaticConfigParams.TOLERANCE);
@@ -46,7 +53,7 @@ namespace SpatialEnrichment
 
         public override int GetHashCode()
         {
-            return Convert.ToInt32(31*X + 17*Y);
+            return Convert.ToInt32(31 * X + 17 * Y);
         }
 
         public override string ToString()
@@ -112,6 +119,11 @@ namespace SpatialEnrichment
             return new Coordinate(StaticConfigParams.rnd.NextDouble(),StaticConfigParams.rnd.NextDouble());
         }
 
+        public Coordinate Jitter(double scale = 0.0001)
+        {
+            return new Coordinate(this.X + (StaticConfigParams.rnd.NextDouble() - 0.5) * scale, this.Y + (StaticConfigParams.rnd.NextDouble() - 0.5) * scale);
+        }
+
     }
 
     public class CoordinateComparer : IEqualityComparer<Coordinate>, IComparer<Coordinate>
@@ -149,17 +161,17 @@ namespace SpatialEnrichment
         private static int[][] LineIdsMap;
 
         public double Slope, Intercept;
-        public Line(double a, double b, bool isCounted=true)
+        public Line(double slope, double intercept, bool isCounted=true)
         {
             if (double.IsNaN(Slope) || double.IsNaN(Intercept) || double.IsInfinity(Slope) || double.IsInfinity(Intercept))
                 throw new ApplicationException("Bad line values");
-            if (Math.Abs(a) < double.Epsilon)
+            if (Math.Abs(slope) < double.Epsilon)
             {
                 Console.WriteLine(@"Line with slope 0 detected, adding epsilon.");
-                a += (StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE;
+                slope += (StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE;
             }
-            Slope = a;
-            Intercept = b;
+            Slope = slope;
+            Intercept = intercept;
             if (isCounted)
                 Id = Count++;
         }
@@ -185,19 +197,19 @@ namespace SpatialEnrichment
             return new Coordinate(xcoord, ycoord);
         }
 
-        public static Line Bisector(Coordinate a, Coordinate b)
+        public static Line Bisector(Coordinate a, Coordinate b, bool isCounted=true)
         {
             var midPoints = new Coordinate((a.X + b.X) / 2, (a.Y + b.Y) / 2);
             var slope = (a.X - b.X) / (b.Y - a.Y);
             var intercept = midPoints.Y - slope * midPoints.X;
-            return new Line(slope, intercept);
+            return new Line(slope, intercept, isCounted);
         }
 
-        public Line Perpendicular(Coordinate coord)
+        public Line Perpendicular(Coordinate coord, bool isCounted = true)
         {
             var recipSlope = -1.0/this.Slope;
             var perpIntercept = coord.Y - recipSlope*coord.X;
-            return new Line(recipSlope, perpIntercept);
+            return new Line(recipSlope, perpIntercept, isCounted);
         }
 
         public bool Equals(Line other)
@@ -251,7 +263,12 @@ namespace SpatialEnrichment
         /// <returns></returns>
         public double EvaluateAtY(double y)
         {
-            return (y - this.Intercept)/this.Slope;
+            return (y - this.Intercept)/this.Slope; //x=(y-B)/A
+        }
+
+        public double EvaluateAtX(double x)
+        {
+            return this.Slope * x + this.Intercept; //y=Ax+B
         }
 
         public double EvaluateAtYSafe(Coordinate c)
@@ -272,6 +289,7 @@ namespace SpatialEnrichment
             for (var i=0; i<pointsCount; i++)
                 LineIdsMap[i] = new int[pointsCount];
         }
+
     }
 
 
@@ -292,9 +310,20 @@ namespace SpatialEnrichment
         public Coordinate SecondIntersectionCoord;
         private Tuple<int, int, int> _tupleId;
 
-    
+
+        public LineSegment(Line source, Line itx1, Line itx2)
+        {
+            Source = source;
+            FirstIntersection = itx1;
+            SecondIntersection = itx2;
+            FirstIntersectionCoord = source.Intersection(itx1);
+            SecondIntersectionCoord = source.Intersection(itx2);
+        }
+
         public LineSegment(Line source, Line itx1, Line itx2, Coordinate first, Coordinate second)
         {
+            //if(source.Id==itx1.Id || source.Id==itx2.Id || itx1.Id==itx2.Id)
+            //    throw new NotImplementedException("implementation bug.");
             Source = source;
             FirstIntersection = itx1;
             SecondIntersection = itx2;
@@ -505,7 +534,7 @@ namespace SpatialEnrichment
     {
         private Dictionary<LineSegment,Cell> segments; //Maps a segment to its cell neighbor
         private List<LineSegment> segmentOrder;
-        private Coordinate _cOm = null;
+        private Coordinate _cOm;
         private object locker = new object();
 
         private Tuple<double, int, int[]> _mHG;
@@ -522,8 +551,8 @@ namespace SpatialEnrichment
 
         public bool[] InducedLabledVector { get; private set; }
 
-        public IEnumerable<Coordinate> Coordinates { get { return this.segments.Keys.Select(s => s.FirstIntersectionCoord); } }
-        public IEnumerable<LineSegment> Segments { get { return this.segmentOrder; } }
+        public IEnumerable<Coordinate> Coordinates { get { return segments.Keys.Select(s => s.FirstIntersectionCoord); } }
+        public IEnumerable<LineSegment> Segments => this.segmentOrder;
 
         public int[] PointRanks { get; private set; }
 
@@ -542,6 +571,10 @@ namespace SpatialEnrichment
         }
 
         public int MyId { get; set; }
+
+        public Cell(IEnumerable<LineSegment> lineSegments) : this(lineSegments.ToList())
+        {
+        }
 
         public Cell(List<LineSegment> lineSegments)
         {
@@ -715,7 +748,7 @@ namespace SpatialEnrichment
             var crosses = 0;
             foreach (var polyside in this.segments.Keys)
             {
-                if (polyside.CrossesY(coord.Y) && polyside.Source.EvaluateAtY(coord.Y)<coord.X)
+                if (polyside.CrossesY(coord.Y) && polyside.Source.EvaluateAtY(coord.Y)<=coord.X)
                     crosses++;
             }
             var contained = crosses%2 == 1;
@@ -774,12 +807,7 @@ namespace SpatialEnrichment
             }
             return _mHG;
         }
-
-        public void SetId(int id)
-        {
-            this.MyId = id;
-        }
-
+        
         
     }
 
@@ -808,6 +836,17 @@ namespace SpatialEnrichment
                 throw new Exception("problem");
             }
             return res;
+        }
+
+        public static double SampleGaussian(SafeRandom random, double mean, double stddev)
+        {
+            // The method requires sampling from a uniform random of (0,1]
+            // but Random.NextDouble() returns a sample of [0,1).
+            double x1 = 1 - random.NextDouble();
+            double x2 = 1 - random.NextDouble();
+
+            double y1 = Math.Sqrt(-2.0 * Math.Log(x1)) * Math.Cos(2.0 * Math.PI * x2);
+            return y1 * stddev + mean;
         }
     }
 

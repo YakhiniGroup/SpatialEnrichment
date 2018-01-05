@@ -48,12 +48,11 @@ namespace SpatialEnrichment
 
 
             List<ISpatialmHGResult> spatialmHGResults = getSpatialmHGResults(points, parametersDictionary);
-            log.Info("test2!!!!");
             ResponseClass output = new ResponseClass(convertResultsToResponse(spatialmHGResults));
 
             return inputSpots == null
                 ? req.CreateResponse(HttpStatusCode.BadRequest, "Please pass a request body")
-                : req.CreateResponse(HttpStatusCode.OK,  output.ToString());
+                : req.CreateResponse(HttpStatusCode.OK,  output);
         }
 
         private static Dictionary<string, string> convertParamsToDictionary(RequestClassParams inputParams)

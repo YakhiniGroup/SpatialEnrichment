@@ -3,9 +3,12 @@
 var JSONobject = {
 	spotSet : null,
 	spots : null,
+	params: null,
+	isProcessedByServer: false,
 	initObject : function(spotSet){
 		JSONobject.spotSet = spotSet;
 		JSONobject.initSpots(JSONobject.spotSet.spots);
+		JSONobject.initParams();
 	},
 	initSpots : function(spotsArr){
 		spotsArray = [];
@@ -18,28 +21,45 @@ var JSONobject = {
 			spots : spotsArray
 		}
 	},
+	initParams : function(){
+		var Actions = $("#configParamsForm_Actions").val();
+		var SkipSlack = -2;
+		var Threshold = $("#configParamsForm_Threshold_Ranger").val();
+		var ExecutionTokenId = Math.floor(Math.random() * 10000);
+		JSONobject.params = {
+			actions : Actions,
+			skipSlack : SkipSlack,
+			threshold : Threshold,
+			executionTokenId : ExecutionTokenId
+		}
+	},
 	reInitObject : function(){
 		JSONobject.initObject(JSONobject.spotSet);
 	},
 	sendJsonObjectToServer : function(){
-		console.log("sending JSONobject to server : \n" + JSON.stringify(JSONobject.spots));
+		JSONobject.isProcessedByServer = true;
 		panel.activateLoader();
+		var object = {
+			spots : JSONobject.spots,
+			parameters : JSONobject.params,
+		}
+		console.log(JSON.stringify(object));
 		$.ajax({
-			url: 'https://xfg3e9bjw7.execute-api.us-west-2.amazonaws.com/prod/data',
+			url: 'https://spatialenrichmentfunc.azurewebsites.net/api/HttpTriggerCSharp',
 			type: 'POST',
 			contentType: 'application/json',
 			success : function(json){
-				panel.exitLoader();
+				JSONobject.isProcessedByServer = false;
 				console.log(JSON.stringify(json));
 				var SpatialmHGResultArray = parser.JSONToSpatialmHGResultArray(json);
 				maps.addSpatialmHGResultSpotsToMap(SpatialmHGResultArray);
 			},
-			error : function(err){
-				panel.exitLoader();
-				alert("Error : Failure connecting to server");
+			error : function(xhr, status, error){
+				JSONobject.isProcessedByServer = false;
 			},
-			data : JSON.stringify(JSONobject.spots)
+			data : JSON.stringify(object)
 		});
+		panel.updateLoader(JSONobject.params.executionTokenId, false);
 	}
 }
 

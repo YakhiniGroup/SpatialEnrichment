@@ -1,7 +1,12 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workbench ActiveDocument="EnrichmentWrapper.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="StaticConfigParams.cs">
     <Files>
-      <File FileName="EnrichmentWrapper.cs" Line="1" Column="1" />
+      <File FileName="EnrichmentWrapper.cs" Line="18" Column="38" />
+      <File FileName="Helpers/ConcurrentPriorityQueue.cs" Line="1" Column="1" />
+      <File FileName="Helpers/ConcurrentIndexing.cs" Line="1" Column="1" />
+      <File FileName="Helpers/BinaryHeap.cs" Line="1" Column="1" />
+      <File FileName="CoordMesh.cs" Line="28" Column="16" />
+      <File FileName="StaticConfigParams.cs" Line="77" Column="35" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />

@@ -25,7 +25,7 @@ namespace SpatialEnrichment
     {
         #region Cell
         private int cellCount = 0, completeCellCount = 0;
-        private double EstimatedCellCount;
+        //private double EstimatedCellCount;
         private readonly BlockingCollection<Cell> cellCollection;
         private readonly ConcurrentPriorityQueue<double,Cell> cellPQ = new ConcurrentPriorityQueue<double, Cell>();
         private readonly ConcurrentDictionary<Coordinate, byte> centroidVisitationCounter;
@@ -61,8 +61,10 @@ namespace SpatialEnrichment
         private Task convxTsk;
 
         public List<ICoordinate> ProjectedFrom = null;
+        public bool[] SourceLabels = null;
         public PrincipalComponentAnalysis pca = null;
         private ConfigParams Config;
+        private double ExpectedCells => ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + 2.0 * Lines.Count + 1;
 
         public Tesselation(List<Coordinate> points, List<bool> labels, List<string> idendities, ConfigParams cnf)
         {
@@ -74,7 +76,7 @@ namespace SpatialEnrichment
             Points = points.Cast<ICoordinate>().ToList();
             labels = labels ?? Enumerable.Repeat(true, points.Count).ToList();
             PointLabels = labels.ToArray();
-            Identities = idendities.Any() ? idendities : null;
+            Identities = (idendities != null && idendities.Any()) ? idendities : null;
             convxTsk = ComputeConvexHull(points);
 
             Line.InitNumPoints(points.Count);
@@ -102,8 +104,15 @@ namespace SpatialEnrichment
                             Lines.Add(line);
                         }
                     }
-            Console.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
-            EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
+            Config.Log.WriteLine(@"Found {0} lines. {1} were degenerate sub problems and ignored.", Lines.Count, ignoredLines);
+            // Add bounding box (diamond)
+            var absDist = points.Max(p => p.EuclideanDistance(new Coordinate(0.0, 0.0)));
+            Lines.Add(new Line(-1, StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line( 1, StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line( 1 + ((StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE), -StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+            Lines.Add(new Line(-1 + ((StaticConfigParams.rnd.NextDouble() - 0.5) * StaticConfigParams.TOLERANCE), -StaticConfigParams.CONST_PROBLEM_SCALE * absDist));
+
+            //EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
             DepletedLines = new bool[Lines.Count];
             Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
         }
@@ -182,9 +191,9 @@ namespace SpatialEnrichment
             //each consecutive intersection pair defines a wall of a cell
             //the coordinate overlap of walls identifies the cell border
             //identifying cycles in the graph induced by coordinates as nodes, and edges as consecutiveness yields cells.
-            Console.WriteLine(@"Building intersection data.");
+            Config.Log.WriteLine(@"Building intersection data.");
             var ds = BuildIntersectionsDatastruct(Lines);
-            Console.WriteLine(@"Traversing graph.");
+            Config.Log.WriteLine(@"Traversing graph.");
             
             var traverseGraphFindCycles = SearchCycles(ds);
             var computeMHGtsk = ComputeCellMHG();
@@ -242,7 +251,7 @@ namespace SpatialEnrichment
                 }
                 hull.RemoveAt(hull.Count - 1);
                 ConvexHull = hull;
-                Console.WriteLine(@"Done computing convex hull.");
+                Config.Log.WriteLine(@"Done computing convex hull.");
             });
         }
 
@@ -422,7 +431,7 @@ namespace SpatialEnrichment
                                 
                                 if (!reset)
                                 {
-                                    cell.SetId(Interlocked.Increment(ref cellCount));
+                                    cell.MyId = Interlocked.Increment(ref cellCount);
                                     if (StaticConfigParams.WriteToCSV)
                                         cell.SaveToCSV(string.Format(@"Cells\Cell_{0}_{1}.csv", cellCount, StaticConfigParams.filenamesuffix));
                                 }
@@ -451,7 +460,7 @@ namespace SpatialEnrichment
             var prevSeg = s;
             while (segQueue.Count<3 || !prevSeg.SharesIntersection(s))
             {
-                var nextSeg = ds.GetSegmentNeighbors(prevSeg, direction).FirstOrDefault();
+                var nextSeg = ds.GetSegmentNeighborBreaking(prevSeg, direction);
                 //Data structure does not contain a neighboring segment in the required direction
                 if (nextSeg == null) 
                 {
@@ -558,10 +567,9 @@ namespace SpatialEnrichment
             var bestCells = new ConcurrentPriorityQueue<double,Cell>();
             var coordLst = new List<Coordinate>();
             var tskLst = new List<Task>();
-            //var sortLL = new SortedIntersectionData(Lines.Count);
             var cmesh = new CoordMesh(Lines);
             int TryCounter = 0;
-            while (cellPQ.Count < numStartCoords && TryCounter < 10000) //cellPQ is a minHeap priotity queue (smaller key is better)
+            while (cellPQ.Count < numStartCoords && TryCounter < 1000) //cellPQ is a minHeap priotity queue (smaller key is better)
             {
                 var coord = (Coordinate)Coordinate.MakeRandom();
                 if (!IsCoordInHull(coord) && TryCounter < 1000)
@@ -572,8 +580,8 @@ namespace SpatialEnrichment
                 var strtCell = ComputeCellFromCoordinate(coord, cmesh);
                 if (strtCell != null)
                 {
-                    cellPQ.Enqueue(Math.Log(strtCell.mHG.Item1), strtCell);
-                    bestCells.Enqueue(Math.Log(strtCell.mHG.Item1), strtCell);
+                    cellPQ.Enqueue(-Math.Log(strtCell.mHG.Item1), strtCell);
+                    bestCells.Enqueue(-Math.Log(strtCell.mHG.Item1), strtCell);
                     coordLst.Add(coord);
                 }
                 else
@@ -590,6 +598,7 @@ namespace SpatialEnrichment
             var tskList = new List<Task>();
             KeyValuePair<double, Cell> currCell;
             bool init = true;
+            int resampleCount = 0;
             while (tskList.Any(t => !t.IsCompleted) || init) //while any job is adding new cells
             {
                 init = false;
@@ -606,13 +615,15 @@ namespace SpatialEnrichment
                 }
                 Task.WaitAll(tskLst.ToArray());
                 tskList.Clear();
-                Console.WriteLine("Finished traversal, resampling from leftovers.");
+                resampleCount++;
                 var unseenCells = cmesh.GetUncoveredSegments().AsParallel()
                     .Select(seg => CoverCellFromSegment(cmesh, seg.Item1, seg.Item2))
                     .Where(t => t != null).Take(numStartCoords).ToList();
                 foreach (var cell in unseenCells)
                     tskList.Add(Task.Run(() => TraverseFromCell(cell, cmesh, AssignMap, bestCells)));
             }
+            Config.Log.WriteLine($"Finished traversal, resampled {resampleCount} times.");
+            Config.Log.Seal();
             return bestCells.Select(t => t.Value).OrderBy(t=>t.mHG.Item1);
         }
 
@@ -626,7 +637,7 @@ namespace SpatialEnrichment
                     AssignMap.AddOrUpdate(
                         AssignMap.Keys.OrderBy(k => k.EuclideanDistance(neigh.CenterOfMass)).First(), 0,
                         (a, b) => b + 1);
-                cellPQ.Enqueue(Math.Log(neigh.mHG.Item1) / Math.Log(history), neigh);
+                cellPQ.Enqueue(-Math.Log(neigh.mHG.Item1) / Math.Log(history), neigh);
                 bestCells.Enqueue(-Math.Log(neigh.mHG.Item1), neigh);
                 while (bestCells.Count > Config.GetTopKResults) bestCells.TryDequeue(out junk);
             }
@@ -665,7 +676,7 @@ namespace SpatialEnrichment
             
             //find 'handeness' of first cell wall to pivot (should we turn left or right to contain?)
             var closestLine = OrderedLines.First().Line;
-            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine);
+            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine); //this is a coordinate on the closest interval 
 
             //while adding lines, if no cell yet, or if the chordless cell that contains the pivot coord changes its boundry, continue adding lines.
             Cell prevCell = null;
@@ -682,25 +693,74 @@ namespace SpatialEnrichment
             return prevCell;
         }
 
+        public Cell ComputeCellFromCoordinateVolatile(Coordinate coord)
+        {
+            //Order points by distance from pivot
+            var sortedDistances = Points.AsParallel()
+                .Select((p, idx) => new { Point = p, Label = PointLabels[idx], PointId = idx, Distance = p.EuclideanDistance(coord) })
+                .OrderBy(t => t.Distance).ToArray();
+
+            //Only lines that impact the order of elements in the binary vector may participate in the cell boundaries.
+            //Since crossing a line may only swap 2 adjacent elements in the vector, and since order in each group makes no difference -
+            //these are lines seperating consecutive groups of 1's and 0's.
+            var relevantLines = new List<Line>();
+            for (var i = 0; i < sortedDistances.Length - 1;)
+            {
+                var consecGroup1 = sortedDistances.Skip(i).TakeWhile(p => p.Label == sortedDistances[i].Label).ToList(); //maps to identically significant neighbors
+                var consecGroup2 = sortedDistances.Skip(i + consecGroup1.Count).TakeWhile(p => p.Label == !sortedDistances[i].Label).ToList();
+                i = i + consecGroup1.Count;
+                relevantLines.AddRange(from pt1 in consecGroup1
+                                       from pt2 in consecGroup2
+                                       select Lines[Line.LineIdFromCoordIds(pt1.PointId, pt2.PointId)]);
+            }
+            var OrderedLines =
+                relevantLines.AsParallel()
+                .Select(l => new { Line = l, Distance = l.DistanceToPoint(coord) })
+                .OrderBy(l => l.Distance)
+                .ToList();
+
+            var closestLine = OrderedLines.First().Line;
+            var startCoord = closestLine.Perpendicular(coord).Intersection(closestLine); //this is a coordinate on the closest interval 
+
+            var cm = new CoordMesh(relevantLines);
+            var startSeg = cm.GetSegmentContainingCoordinateOnLine(closestLine.Id, startCoord);
+
+            Cell prevCell = null;
+            var linecount = 0;
+            if (startSeg != null)
+            {
+                var segAngle = LineSegment.GetAngle(coord, startCoord, startCoord, startSeg.SecondIntersectionCoord);
+                var direction = startSeg.IsPositiveLexicographicProgress() ^ (segAngle > 180) ? SegmentCellCovered.Right : SegmentCellCovered.Left;
+                prevCell = CoverCellFromSegment(cm, startSeg, direction);
+            }
+
+            return prevCell;
+        }
+
+
         private Cell CoverCellFromSegment(CoordMesh sortLL, LineSegment startSeg, SegmentCellCovered direction)
         {
             bool banned;
             var cell = DirectedCellFromSegment(sortLL, startSeg, direction, out banned);
             if (banned || cell == null) return null;
-            if (ProjectedFrom==null)
+            if (ProjectedFrom == null)
                 cell.ComputeRanking(Points, PointLabels, Identities);
             else
-                cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
+                if(this.SourceLabels == null)
+                    cell.ComputeRanking(ProjectedFrom, PointLabels, Identities, pca);
+                else
+                    cell.ComputeRanking(ProjectedFrom, SourceLabels, Identities);
             cell.Compute_mHG(StaticConfigParams.CorrectionType, Config);
-            cell.SetId(Interlocked.Increment(ref cellCount));
+            cell.MyId = Interlocked.Increment(ref cellCount);
+            string outstring = string.Empty;
             if (cell.MyId % 100 == 0)
             {
-                var numcovered = (int) (sortLL.segmentCount / 8);
-                var percentCovered = (double) numcovered / sortLL.numCoords; //numcell / Config.Cellcount
-                Console.Write("\r\r\r\r\r\r\r\rCell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", numcovered,//cellCount,
+                var percentCovered = cell.MyId / ExpectedCells; //numcell / Config.Cellcount
+                outstring = string.Format(@"Cell #{0} ({1:P1}) @{2} with {3:F}cps {4:E2}mHG est {5:g} remaining.", cell.MyId,//cellCount,
                     percentCovered, cell.CenterOfMass.ToString("0.000"),
-                    numcovered / sw.Elapsed.TotalSeconds, mHGJumper.optHGT, 
-                    new TimeSpan(0, 0, (int)((EstimatedCellCount - numcovered) / (numcovered / sw.Elapsed.TotalSeconds))));
+                    cell.MyId / sw.Elapsed.TotalSeconds, mHGJumper.optHGT,
+                    new TimeSpan(0, 0, (int)((ExpectedCells - cell.MyId) / (cell.MyId / sw.Elapsed.TotalSeconds))));
+                Console.Write("\r\r\r\r\r\r\r\r"+outstring);
                 if (!sw.IsRunning)
                     sw.Start();
             }
@@ -725,9 +785,9 @@ namespace SpatialEnrichment
                 var orderedRightLines = sortedLines.Item2;
                 
                 var leftSegment = NearestAllowedSegment(prevCell, sortLL, orderedLeftLines, seg, 
-                    isLeftAngle ? SegmentCellCovered.Right : SegmentCellCovered.Left);
+                    isLeftAngle ? SegmentCellCovered.Right : SegmentCellCovered.Left, out var skippedLeft);
                 var rightSegment = NearestAllowedSegment(prevCell, sortLL, orderedRightLines, seg, 
-                    isLeftAngle ? SegmentCellCovered.Left : SegmentCellCovered.Right);
+                    isLeftAngle ? SegmentCellCovered.Left : SegmentCellCovered.Right, out var skippedRight);
 
                 //for allowed segments lets find their corresponding cells and continue with the recursion.
                 var segList = new List<Tuple<LineSegment, SegmentCellCovered>>()
@@ -745,13 +805,13 @@ namespace SpatialEnrichment
             }
         }
 
-        private LineSegment NearestAllowedSegment(Cell prevCell, CoordMesh sortLL, IEnumerable<Line> sortedLines, LineSegment seg, SegmentCellCovered coverageDirection)
+        private LineSegment NearestAllowedSegment(Cell prevCell, CoordMesh sortLL, IEnumerable<Line> sortedLines, LineSegment seg, SegmentCellCovered coverageDirection, out int skipped)
         {
             var SLe = sortedLines.GetEnumerator();
             //if (!sortedLines.Any()) return null;
             //We skip from the current segment and find the nearest allowed segment on both sides.
 
-            int skipped = 0; //counts actual number of skips from prevCells
+            skipped = 0; //counts actual number of skips from prevCells
             LineSegment openSegment = null; //return value
             
             var boolVec = prevCell.InducedLabledVector.ToArray(); //state of point labels at current segment's cell
@@ -765,25 +825,29 @@ namespace SpatialEnrichment
             var skipsArray = prevCell.mHG.Item3.ToArray(); //min number of skips per threshold to beat mHG opt
             Line lastLine = null;
             var lid = 0;
+            int remainingSkips = 0;
             while(openSegment == null && SLe.MoveNext())
             {
                 var line = SLe.Current;
-                //lid++;
-                var ptArnk = prevCell.PointRanks[line.PointAId];
-                var ptBrnk = prevCell.PointRanks[line.PointBId];
-                if (ptArnk > ptBrnk) Generics.Swap(ref ptArnk, ref ptBrnk);
-                
-                //Adding a line to segment.
-                Generics.Swap(ref boolVec[ptArnk], ref boolVec[ptBrnk]);
-                for (var i = ptArnk; i < ptBrnk + 1; i++)
-                    coordVec[i] = (i > 0 ? coordVec[i - 1] : 0) + (boolVec[i] ? 1 : 0);
+                if (line.PointAId != -1 || line.PointBId != -1) // if this isnt a faux-line (bounding box)
+                {
+                    //lid++;
+                    var ptArnk = prevCell.PointRanks[line.PointAId];
+                    var ptBrnk = prevCell.PointRanks[line.PointBId];
+                    if (ptArnk > ptBrnk) Generics.Swap(ref ptArnk, ref ptBrnk);
 
-                skipsArray[coordVec[ptArnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? 1 : -1;
+                    //Adding a line to segment.
+                    Generics.Swap(ref boolVec[ptArnk], ref boolVec[ptBrnk]);
+                    for (var i = ptArnk; i < ptBrnk + 1; i++)
+                        coordVec[i] = (i > 0 ? coordVec[i - 1] : 0) + (boolVec[i] ? 1 : 0);
+
+                    skipsArray[coordVec[ptArnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? 1 : -1;
                     //raised a 0 and lowered a 1 in the vector
-                skipsArray[coordVec[ptBrnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? -1 : 1;
+                    skipsArray[coordVec[ptBrnk]] += boolVec[ptArnk] && !boolVec[ptBrnk] ? -1 : 1;
                     //raised a 1 and lowered a 0 in the vector
 
-                var remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
+                    remainingSkips = skipsArray[coordVec[ptArnk]] + Config.SKIP_SLACK;
+                }
                 if (lastLine != null)
                 {
                     openSegment = sortLL.GetSegment(seg.Source.Id, lastLine, line);
@@ -795,10 +859,11 @@ namespace SpatialEnrichment
                     if (remainingSkips > 0 && !covered)
                     {
                         sortLL.CoverSegment(openSegment, coverageExtension);
-                        //if(Config.CellCountStrategy == )
+                        /*
                         Interlocked.Increment(ref cellCount);
                         if (remainingSkips > 1)
                             Interlocked.Increment(ref cellCount);
+                        */
                         openSegment = null;
                     }
                     if (covered)
