@@ -16,3 +16,17 @@ UsageExampleProject/obj/
 packages/
 .vs/slnx.sqlite
 SpatialEnrichmentWrapper/bin/
+.vs/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmentFunc/bin/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmentFunc/obj/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/bin/
+AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/bin/
+AzureFuncDatabaseQuery/AzureDatabaseQueryFunc/AzureDatabaseQueryFunc/obj/
+mmHG/bin/
+mmHG/obj/
+Python/.idea/
+*.CopyComplete
+SpatialEnrichmentWrapper/obj/
+UnitTests/bin/
+UnitTests/obj/
+AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/obj/
