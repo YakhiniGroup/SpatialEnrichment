@@ -38,7 +38,12 @@ namespace SpatialEnrichment
                     throw new NotImplementedException("Two dimensional data does not implement get dim >1!");
             }
         }
-        
+
+        public double Norm()
+        {
+            return Math.Sqrt(X * X + Y * Y);
+        }
+
         public int GetDimensionality() { return 2; }
 
         public bool Equals(Coordinate other)
@@ -258,7 +263,12 @@ namespace SpatialEnrichment
         /// <returns></returns>
         public double EvaluateAtY(double y)
         {
-            return (y - this.Intercept)/this.Slope;
+            return (y - this.Intercept)/this.Slope; //x=(y-B)/A
+        }
+
+        public double EvaluateAtX(double x)
+        {
+            return this.Slope * x + this.Intercept; //y=Ax+B
         }
 
         public double EvaluateAtYSafe(Coordinate c)

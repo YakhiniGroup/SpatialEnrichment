@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -77,6 +78,20 @@ namespace UnitTests
             });
          Console.WriteLine(bestP);
         }
+
+        [TestMethod]
+        public void Empirical3DSamplingTest()
+        {
+            var filename = @"C:\Users\shaybe\Dropbox\Thesis - PHd\SpatialEnrichment\Caulobacter\transferases\phosphoribosyltransferase_3d.csv";
+            var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
+                new Tuple<ICoordinate, bool>(
+                    new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])),
+                    bool.Parse(sl[3]))).ToList();
+            var empiricalGrid = new Gridding();
+            empiricalGrid.GenerateEmpricialDensityGrid(10000, data);
+            var grid = empiricalGrid.GetPivots().ToList();
+        }
+
 
         [TestMethod]
         public void SamplingGridSearchExperiment()

@@ -11,6 +11,7 @@ namespace SpatialEnrichmentWrapper
     public interface ICoordinate
     {
         double EuclideanDistance(ICoordinate pivotCoord);
+        double Norm();
         string ToString();
         double GetDimension(int dim);
         int GetDimensionality();

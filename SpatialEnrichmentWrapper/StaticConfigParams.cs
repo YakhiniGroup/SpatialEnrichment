@@ -18,15 +18,16 @@ namespace SpatialEnrichmentWrapper
         Instance_PlantedSingleEnrichment = 1 << 1,  //Deterministic and plants all 1's around one pivot
         Search_Exhaustive = 1 << 2,                 //Covers all cells
         Search_Originals = 1 << 3,                  //Covers all original points as potential pivots
-        Search_CoordinateSample = 1 << 4,          //Finds cell by sample coordinate
+        Search_CellSkipping = 1 << 4,          //Finds cell by sample coordinate
         Search_GradientDescent = 1 << 5,            //Only crosses into better cells
         Program_RandomConstSeed = 1 << 6,           //If used Const for seed 
         Search_SimulatedAnnealing = 1 << 7,
         Search_FixedSet = 1 << 8,
         Search_LineSweep = 1 << 9,
-        Filter_DegenerateLines = 1 << 10,
-        Experiment_ComparePivots = 1 << 11,
-        Experiment_SampleLines = 1 << 12
+        Search_EmpricalSampling = 1 << 10,
+        Filter_DegenerateLines = 1 << 11,
+        Experiment_ComparePivots = 1 << 12,
+        Experiment_SampleLines = 1 << 13
     }
 
     public static class StaticConfigParams
@@ -54,17 +55,17 @@ namespace SpatialEnrichmentWrapper
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
         public Actions ActionList =
             //Actions.Experiment_ComparePivots |
-            Actions.Experiment_SampleLines | 
+            //Actions.Experiment_SampleLines | 
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
             Actions.Filter_DegenerateLines | // Warning, this might not work.
-            //Actions.Search_Originals;
-            //Actions.Search_Exhaustive;
-            //Actions.Search_LineSweep;
-            //Actions.Search_FixedSet;
-            Actions.Search_CoordinateSample | Actions.Search_GradientDescent;
-
+                                             //Actions.Search_Originals;
+                                             //Actions.Search_Exhaustive;
+                                             //Actions.Search_LineSweep;
+                                             //Actions.Search_FixedSet;
+                                             //Actions.Search_CellSkipping | Actions.Search_GradientDescent;
+            Actions.Search_EmpricalSampling;
         //non-parameters
         public double Cellcount;
         public ConcurrentBag<Tuple<double, int>> mHGlist = new ConcurrentBag<Tuple<double, int>>();

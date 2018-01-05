@@ -141,7 +141,7 @@ namespace SpatialEnrichment
                 numcoords -= filterCount;
             }
 
-            var instanceDataCoords = coordinates.Zip(labels, (a, b) => new Tuple<Coordinate, bool>((Coordinate)a, b)).ToList();
+            var instanceDataCoords = coordinates.Zip(labels, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList();
             var instanceData = coordinates.Zip(labels, (a, b) => new Tuple<double, double, bool>(a.GetDimension(0), a.GetDimension(1), b)).ToList();
             Config.SKIP_SLACK = -1000;
             var ew = new EnrichmentWrapper(Config);
@@ -222,7 +222,7 @@ namespace SpatialEnrichment
             //File.WriteAllLines($"experimentsAll_{suffix}.txt", extraAnalyses);
             return resultPairedDiff;
         }
-        public static double EnrichmentAtPivot(List<Tuple<Coordinate, bool>> data, Coordinate pivot)
+        public static double EnrichmentAtPivot(List<Tuple<ICoordinate, bool>> data, ICoordinate pivot)
         {
             var binvec = data.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2).ToArray();
             var res = mHGJumper.minimumHypergeometric(binvec);

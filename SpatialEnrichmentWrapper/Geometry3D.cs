@@ -165,7 +165,7 @@ namespace SpatialEnrichmentWrapper
             var normalVec = b - a;
             var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
             var d = normalVec.DotProduct(midPoints);
-            return new Plane(normalVec.X * midPoints.X, normalVec.Y * midPoints.Y, normalVec.Z * midPoints.Z, d)
+            return new Plane(normalVec.X, normalVec.Y, normalVec.Z, d)
                        { MidPoint = midPoints };
         }
 
