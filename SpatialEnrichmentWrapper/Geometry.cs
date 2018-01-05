@@ -322,7 +322,7 @@ namespace SpatialEnrichment
 
         public LineSegment(Line source, Line itx1, Line itx2, Coordinate first, Coordinate second)
         {
-            //if(source.Id==itx1.Id || source.Id==itx2.Id || itx1.Id==itx2.Id)
+            //if(source.id==itx1.id || source.id==itx2.id || itx1.id==itx2.id)
             //    throw new NotImplementedException("implementation bug.");
             Source = source;
             FirstIntersection = itx1;

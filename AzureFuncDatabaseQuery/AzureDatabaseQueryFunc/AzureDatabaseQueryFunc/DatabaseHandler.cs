@@ -37,7 +37,7 @@ namespace DatabaseProgressQuery
             //  find the query via its id
             IQueryable<Query> queryList = this.client.CreateDocumentQuery<Query>(
                     UriFactory.CreateDocumentCollectionUri(k_DataBaseID, k_CollectionID), queryOptions)
-                    .Where(q => q.Id.Equals(id));
+                    .Where(q => q.id.Equals(id));
             queryArry = queryList.ToArray();
 
             return queryArry == null ? null : queryList.ToArray()[0];
@@ -47,7 +47,7 @@ namespace DatabaseProgressQuery
         {
             try
             {
-                await this.client.ReadDocumentAsync(UriFactory.CreateDocumentUri(k_DataBaseID, k_CollectionID, query.Id));
+                await this.client.ReadDocumentAsync(UriFactory.CreateDocumentUri(k_DataBaseID, k_CollectionID, query.id));
                 // Trying to read - if successful document with the id already existed
             }
             catch (DocumentClientException de)
@@ -67,7 +67,7 @@ namespace DatabaseProgressQuery
 
         public async Task ReplaceQueryDocumentAsync(Query newQuery, Query oldQuery)
         {
-            await this.client.ReplaceDocumentAsync(UriFactory.CreateDocumentUri(k_DataBaseID, k_CollectionID, oldQuery.Id), newQuery);
+            await this.client.ReplaceDocumentAsync(UriFactory.CreateDocumentUri(k_DataBaseID, k_CollectionID, oldQuery.id), newQuery);
         }
 
 

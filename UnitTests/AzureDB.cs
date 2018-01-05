@@ -16,7 +16,7 @@ namespace UnitTests
             var db = new DatabaseProgressQuery.DatabaseHandler();
             var q = new DatabaseProgressQuery.Query()
             {
-                Id = "3",
+                id = "3",
                 Message = "Initialized Log.",
                 Value = 0
             };
@@ -36,6 +36,7 @@ namespace UnitTests
         public void TestFrontendData()
         {
             var config = new ConfigParams(tokenId: "");
+            config.ActionList = Actions.Filter_DegenerateLines | Actions.Search_CellSkipping | Actions.Search_GradientDescent;
             var er = new EnrichmentWrapper(config);
             //var instance = RandomInstance.RandomizeCoordinatesAndSave(20, config, false);
             var data = File.ReadAllLines(@"zika.csv").Skip(1).Select(l => l.Split(','))

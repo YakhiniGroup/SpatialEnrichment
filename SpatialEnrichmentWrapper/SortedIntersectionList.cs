@@ -162,7 +162,7 @@ namespace SpatialEnrichment
                 var tcount = 0;
                 foreach (var line in g.Select(l => l.line))
                 {
-                    //ranks[line.Id] = count;
+                    //ranks[line.id] = count;
                     ranks.Add(line.Id, count);
                     if (tcount==0)
                         tmpLinelist.Add(line);

@@ -23,7 +23,7 @@ namespace SpatialEnrichmentWrapper
             messageQueue = new BlockingCollection<Tuple<string, int>>();
             prevQuery = new Query()
             {
-                Id = ExecutionTokenId,
+                id = ExecutionTokenId,
                 Message = "Initialized Log.",
                 Value = 0
             };
@@ -73,7 +73,7 @@ namespace SpatialEnrichmentWrapper
                     //var delTask = db.DeleteQueryDocumentAsync(ExecutionTokenId);
                     var q = new DatabaseProgressQuery.Query()
                     {
-                        Id = ExecutionTokenId,
+                        id = ExecutionTokenId,
                         Message = lastmsg.Item1,
                         Value = lastmsg.Item2
                     };

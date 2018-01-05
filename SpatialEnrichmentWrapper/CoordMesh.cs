@@ -149,16 +149,16 @@ namespace SpatialEnrichment
 
             /*
             var leftList = new List<Line>(firstIdx+1);
-            var rightList = new List<Line>(LineToCoords[seg.Source.Id].Count - firstIdx - 1);
+            var rightList = new List<Line>(LineToCoords[seg.Source.id].Count - firstIdx - 1);
             for (var i= firstIdx + 1; i>=0; i--)
             {
-                var c = LineToCoords[seg.Source.Id][i];
-                leftList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
+                var c = LineToCoords[seg.Source.id][i];
+                leftList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.id)]);
             }
-            for (var i=secondIdx; i< LineToCoords[seg.Source.Id].Count; i++)
+            for (var i=secondIdx; i< LineToCoords[seg.Source.id].Count; i++)
             {
-                var c = LineToCoords[seg.Source.Id][i];
-                rightList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.Id)]);
+                var c = LineToCoords[seg.Source.id][i];
+                rightList.Add(Lines[LineIdFromCoordIdExceptIdx(c.CoordId.Value, seg.Source.id)]);
             }
             */
             var leftCoords = LineToCoords[seg.Source.Id].Take(firstIdx + 1).Reverse();
@@ -213,23 +213,23 @@ namespace SpatialEnrichment
             }
             /*
             var neighborCoords = VertexNeighbors(inVertexId)
-                           .Select((v, id) => new { Vertex = v, Id = id }).Where(v => v.Vertex != null).Select(v => new
+                           .Select((v, id) => new { Vertex = v, id = id }).Where(v => v.Vertex != null).Select(v => new
                            {
                                v.Vertex,
-                               v.Id,
+                               v.id,
                                Angle = LineSegment.GetAngle(seg.FirstIntersectionCoord, seg.SecondIntersectionCoord,
                                                             seg.SecondIntersectionCoord, v.Vertex),
                                LineIds = LineIdsFromCoordId(v.Vertex.CoordId.Value)
                            }).ToList(4);
             if ((direction & Tesselation.SegmentCellCovered.Right) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != seg.Source.id && v.LineIds.Item2 != seg.Source.id);
                 if (nextCoord != null)
                     CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
             }
             if ((direction & Tesselation.SegmentCellCovered.Left) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != seg.Source.Id && v.LineIds.Item2 != seg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != seg.Source.id && v.LineIds.Item2 != seg.Source.id);
                 if (nextCoord != null)
                     CoverCoordPair(seg.SecondIntersectionCoord, nextCoord.Vertex, direction);
             }
@@ -302,18 +302,18 @@ namespace SpatialEnrichment
             /*
             var inLexProg = prevSeg.IsPositiveLexicographicProgress() ? 0 : 2;
             var neighborCoords = VertexNeighbors(inVertexId)
-               .Select((v, id) => new { Vertex = v, Id = id }).Where(v => v.Vertex != null && v.Vertex.CoordId != prevSeg.FirstIntersectionCoord.CoordId)
+               .Select((v, id) => new { Vertex = v, id = id }).Where(v => v.Vertex != null && v.Vertex.CoordId != prevSeg.FirstIntersectionCoord.CoordId)
                .Select(v => new
                {
                    v.Vertex,
-                   v.Id,
+                   v.id,
                    Angle = LineSegment.GetAngle(prevSeg.FirstIntersectionCoord, prevSeg.SecondIntersectionCoord,
                                                 prevSeg.SecondIntersectionCoord, v.Vertex),
                    LineIds = LineIdsFromCoordId(v.Vertex.CoordId.Value)
                }).ToList();
             if ((nextDirection & Tesselation.SegmentCellCovered.Right) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v => v.Angle < 180 && v.LineIds.Item1 != prevSeg.Source.Id && v.LineIds.Item2 != prevSeg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v => v.Angle < 180 && v.LineIds.Item1 != prevSeg.Source.id && v.LineIds.Item2 != prevSeg.Source.id);
                 if (nextCoord != null)
                 {
                     var coordlineid = nextCoord.LineIds.Item1 != newSource ? nextCoord.LineIds.Item1 : nextCoord.LineIds.Item2;
@@ -322,7 +322,7 @@ namespace SpatialEnrichment
             }
             if ((nextDirection & Tesselation.SegmentCellCovered.Left) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v => v.Angle > 180 && v.LineIds.Item1 != prevSeg.Source.Id && v.LineIds.Item2 != prevSeg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v => v.Angle > 180 && v.LineIds.Item1 != prevSeg.Source.id && v.LineIds.Item2 != prevSeg.Source.id);
                 if (nextCoord != null)
                 {
                     var coordlineid = nextCoord.LineIds.Item1 != newSource ? nextCoord.LineIds.Item1 : nextCoord.LineIds.Item2;
@@ -358,10 +358,10 @@ namespace SpatialEnrichment
             var inLexProg = nextSeg.IsPositiveLexicographicProgress();
             var covered = true;
             var neighborCoords = VertexNeighbors(inVertexId)
-               .Select((v, id) => new { Vertex = v, Id = id }).Where(v=>v.Vertex!=null).Select(v=> new
+               .Select((v, id) => new { Vertex = v, id = id }).Where(v=>v.Vertex!=null).Select(v=> new
                {
                    v.Vertex,
-                   v.Id,
+                   v.id,
                    Angle = LineSegment.GetAngle(nextSeg.FirstIntersectionCoord, nextSeg.SecondIntersectionCoord,
                                             nextSeg.SecondIntersectionCoord, v.Vertex),
                    LineIds = LineIdsFromCoordId(v.Vertex.CoordId.Value)
@@ -369,15 +369,15 @@ namespace SpatialEnrichment
 
             if ((nextDirection & Tesselation.SegmentCellCovered.Right) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v=> inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != nextSeg.Source.Id && v.LineIds.Item2 != nextSeg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v=> inLexProg ? v.Angle < 180 : v.Angle > 180 && v.LineIds.Item1 != nextSeg.Source.id && v.LineIds.Item2 != nextSeg.Source.id);
                 if(nextCoord != null)
-                    covered = covered &  this.CoveredIntersectionsRight[inVertexId, nextCoord.Id];
+                    covered = covered &  this.CoveredIntersectionsRight[inVertexId, nextCoord.id];
             }
             if ((nextDirection & Tesselation.SegmentCellCovered.Left) != 0)
             {
-                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != nextSeg.Source.Id && v.LineIds.Item2 != nextSeg.Source.Id);
+                var nextCoord = neighborCoords.FirstOrDefault(v => inLexProg ? v.Angle > 180 : v.Angle < 180 && v.LineIds.Item1 != nextSeg.Source.id && v.LineIds.Item2 != nextSeg.Source.id);
                 if (nextCoord != null)
-                    covered = covered & this.CoveredIntersectionsLeft[inVertexId, nextCoord.Id];
+                    covered = covered & this.CoveredIntersectionsLeft[inVertexId, nextCoord.id];
             }
             return covered;
             */
