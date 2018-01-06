@@ -7,6 +7,7 @@ using SpatialEnrichment;
 using SpatialEnrichment.Helpers;
 using Accord.Statistics.Analysis;
 using System.Collections.Concurrent;
+using System.Configuration;
 using System.IO;
 using System.Threading;
 using Accord.IO;
@@ -77,22 +78,24 @@ namespace SpatialEnrichmentWrapper
 
             var numPlanes = planeList.Count();
 
-            if ((Config.ActionList & Actions.Search_EmpricalSampling) != 0)
+            if ((Config.ActionList & Actions.Search_EmpricalSampling) != 0 || (Config.ActionList & Actions.Search_UniformSampling) != 0)
             {
                 var problem = normcoords.Zip(labels, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList();
                 var gr = new Gridding();
-                var problemSize = MathExtensions.Binomial(numPlanes, 3) + MathExtensions.Binomial(numPlanes, 2) + numPlanes + 1;
-                gr.GenerateEmpricialDensityGrid((long)Math.Min(problemSize, 100000), problem);
+                // var problemSize = MathExtensions.Binomial(numPlanes, 3) + MathExtensions.Binomial(numPlanes, 2) + numPlanes + 1;
+                //(long)Math.Min(problemSize, 100000)
+                if((Config.ActionList & Actions.Search_EmpricalSampling) != 0)
+                    gr.GenerateEmpricialDensityGrid(1000000, problem);
+                if((Config.ActionList & Actions.Search_UniformSampling) != 0)
+                    gr.GeneratePivotGrid(1000000,3);
                 var results = new ConcurrentPriorityQueue<double, ISpatialmHGResult>();
                 Parallel.ForEach(gr.GetPivots(), pivot =>
                 {
                     var binvec = problem.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2).ToArray();
                     var res = mHGJumper.minimumHypergeometric(binvec);
                     results.Enqueue(res.Item1, new SpatialmHGResult3D(res.Item1, res.Item2, (Coordinate3D)pivot));
-                    while (results.Count > Config.GetTopKResults)
-                        results.TryDequeue(out var junk);
                 });
-                return results.Select(v => v.Value).ToList();
+                return results.Take(Config.GetTopKResults).Select(v => v.Value).ToList();
             }
 
             if ((Config.ActionList & Actions.Search_CellSkipping) != 0)
@@ -321,6 +324,8 @@ namespace SpatialEnrichmentWrapper
             X = pos.X;
             Y = pos.Y;
             Z = pos.Z;
+            enrichmentPolygon =
+                new List<Tuple<double, double, double>>() {new Tuple<double, double, double>(pos.X, pos.Y, pos.Z)};
         }
         public SpatialmHGResult3D(SpatialmHGResult c, PrincipalComponentAnalysis pca, int planeId = -1)
         {
@@ -355,6 +360,11 @@ namespace SpatialEnrichmentWrapper
             Y = nc.GetDimension(1);
             Z = nc.GetDimension(2);
             enrichmentPolygon = enrichmentPolygon.Select(p => nrm.DeNormalize(new Coordinate3D(p.Item1, p.Item2, p.Item3))).Select(v => new Tuple<double, double, double>(v.GetDimension(0), v.GetDimension(1), v.GetDimension(2))).ToList();
+        }
+
+        public override string ToString()
+        {
+            return $"{X},{Y},{Z},{pvalue}";
         }
     }
 

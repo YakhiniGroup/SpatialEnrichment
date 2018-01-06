@@ -155,19 +155,22 @@ namespace SpatialEnrichment
                     results = ew.SpatialmHGWrapper(coordinates.Zip(labels, (a, b) => 
                         new Tuple<double, double, bool>(a.GetDimension(0), a.GetDimension(1), b)).ToList());
                 }
+
                 for (var resid = 0; resid < results.Count; resid++)
                 {
                     results[resid].SaveToCSV($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv");
                 }
-                using (var outfile = new StreamWriter($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv"))
-                    foreach (var res in Config.mHGlist.Where(t => t != null))
-                        outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
+                if (Config.mHGlist.Any())
+                    using (var outfile = new StreamWriter($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv"))
+                        foreach (var res in Config.mHGlist.Where(t => t != null))
+                            outfile.WriteLine("{0},{1}", res.Item2, res.Item1);
                 if (options.BatchMode)
                 {
                     AzureBatchExecution.UploadFileToContainer($"{infile}_mhglist_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
                     for (var resid = 0; resid < results.Count; resid++)
                         AzureBatchExecution.UploadFileToContainer($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
                 }
+                File.WriteAllLines(Path.ChangeExtension(infile, "out"), results.Select(r=>r.ToString()));
             }
 
             //Finalize
@@ -176,7 +179,6 @@ namespace SpatialEnrichment
                 Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
                 Console.ReadKey();
             }
-            
         }
 
         public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)

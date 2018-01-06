@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpatialEnrichment", "SpatialEnrichment\SpatialEnrichment.csproj", "{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}"
 EndProject
@@ -18,29 +18,51 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Debug|x64.ActiveCfg = Debug|x64
+		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Debug|x64.Build.0 = Debug|x64
 		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Release|x64.ActiveCfg = Release|x64
+		{9D083F7E-7C73-4E56-92CF-3B22BA4E3729}.Release|x64.Build.0 = Release|x64
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Debug|x64.ActiveCfg = Debug|x64
+		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Debug|x64.Build.0 = Debug|x64
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|x64.ActiveCfg = Release|x64
+		{BAC53B11-AD64-4BF4-9DAF-AFA7F7FB70CE}.Release|x64.Build.0 = Release|x64
 		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|x64.ActiveCfg = Debug|x64
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Debug|x64.Build.0 = Debug|x64
 		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|x64.ActiveCfg = Release|x64
+		{A960ED84-B1E4-41FE-AD00-B802C84017D8}.Release|x64.Build.0 = Release|x64
 		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|x64.ActiveCfg = Debug|x64
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Debug|x64.Build.0 = Debug|x64
 		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|x64.ActiveCfg = Release|x64
+		{CCF706E6-556C-4142-B92F-C1AEBB7E4D3C}.Release|x64.Build.0 = Release|x64
 		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|x64.ActiveCfg = Debug|x64
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Debug|x64.Build.0 = Debug|x64
 		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|x64.ActiveCfg = Release|x64
+		{CEC9C869-963E-4F7A-A9D5-A75869736819}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

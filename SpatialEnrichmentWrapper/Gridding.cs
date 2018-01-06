@@ -91,7 +91,6 @@ namespace SpatialEnrichmentWrapper
                                 new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, second_negdir);
                             //averaging ensures we are in the exact cell who's bottom-most coordinate is the intersection coord.
                             jitteredPivot = new Coordinate(first_coord.GetDimension(0) + second_coord.GetDimension(0) / 2.0, first_coord.GetDimension(1) + second_coord.GetDimension(1) / 2.0);
-                            
                             /*
                             // Note: I abandoned the Random sampled jitter strategy since this simpler strategy ensures a 1-1 mapping between an intersectionCoord and a cell (up to scale).
                             var jitteredPivot = new Coordinate(

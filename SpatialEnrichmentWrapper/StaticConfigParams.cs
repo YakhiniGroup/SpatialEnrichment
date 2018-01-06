@@ -25,9 +25,10 @@ namespace SpatialEnrichmentWrapper
         Search_FixedSet = 1 << 8,
         Search_LineSweep = 1 << 9,
         Search_EmpricalSampling = 1 << 10,
-        Filter_DegenerateLines = 1 << 11,
-        Experiment_ComparePivots = 1 << 12,
-        Experiment_SampleLines = 1 << 13
+        Search_UniformSampling = 1 << 11,
+        Filter_DegenerateLines = 1 << 12,
+        Experiment_ComparePivots = 1 << 13,
+        Experiment_SampleLines = 1 << 14
     }
 
     public static class StaticConfigParams
@@ -53,6 +54,7 @@ namespace SpatialEnrichmentWrapper
         public double SIGNIFICANCE_THRESHOLD = 0.05;
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data
+
         public Actions ActionList =
             //Actions.Experiment_ComparePivots |
             //Actions.Experiment_SampleLines | 
@@ -65,6 +67,7 @@ namespace SpatialEnrichmentWrapper
                                              //Actions.Search_LineSweep;
                                              //Actions.Search_FixedSet;
                                              //Actions.Search_CellSkipping | Actions.Search_GradientDescent;
+            //Actions.Search_UniformSampling;
             Actions.Search_EmpricalSampling;
         //non-parameters
         public double Cellcount;

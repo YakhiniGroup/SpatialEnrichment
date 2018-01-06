@@ -116,6 +116,11 @@ namespace SpatialEnrichmentWrapper
             return Math.Sqrt(X * X + Y * Y + Z * Z);
         }
 
+        public Coordinate3D Normalize()
+        {
+            return new Coordinate3D(X / Norm(), Y / Norm(), Z / Norm());
+        }
+
         public double CrossProduct(Coordinate3D other)
         {
             throw new NotImplementedException();
@@ -162,9 +167,9 @@ namespace SpatialEnrichmentWrapper
 
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
         {
-            var normalVec = b - a;
             var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
-            var d = normalVec.DotProduct(midPoints);
+            var normalVec = (b - a).Normalize();
+            var d = -normalVec.DotProduct(midPoints);
             return new Plane(normalVec.X, normalVec.Y, normalVec.Z, d)
                        { MidPoint = midPoints };
         }
@@ -195,6 +200,11 @@ namespace SpatialEnrichmentWrapper
             var norm = Math.Sqrt(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z);
             var uNormal = Normal.Scale(1.0 / norm);
             return uNormal;
+        }
+
+        public override string ToString()
+        {
+            return Normal + "," + D;
         }
     }
 
