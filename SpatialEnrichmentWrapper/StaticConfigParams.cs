@@ -57,7 +57,7 @@ namespace SpatialEnrichmentWrapper
 
         public Actions ActionList =
             //Actions.Experiment_ComparePivots |
-            //Actions.Experiment_SampleLines | 
+            Actions.Experiment_SampleLines | 
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |

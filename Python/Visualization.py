@@ -11,7 +11,7 @@ def plot_surface(a, b, c, d):
     # d = -point.dot(normal)
     # create x,y mesh
     normal = np.array([a, b, c])
-    xx, yy = np.meshgrid(range(5), range(5))
+    xx, yy = np.meshgrid(np.arange(0.0, 1.0, 0.1), np.arange(0.0, 1.0, 0.1))
     # calculate corresponding z
     z = (-normal[0] * xx - normal[1] * yy - d) * 1. / normal[2]
     plt3d = plt.gca(projection='3d')
@@ -57,13 +57,23 @@ pivotfile = r'C:\PhD\ShortCompile\SpatialEnrichment\bin\Debug\Cells\phosphoribos
 plot_pivot_from_file(pivotfile)
 
 # Create the figure
-point1 = np.array([0.16256379, 0.00000000, 0.45163550])
-point2 = np.array([0.74814109, 0.48375093, 0.34264954])
-a, b, c, d = -0.76313727, -0.63043490, 0.14203291, 0.443575840241839
+point1 = np.array([0.66625918,0.25990604,0.42158888])
+point2 = np.array([0.08844277,0.21350691,0.69131287])
+a, b, c, d = -0.90374796,-0.07257170,0.42186843,0.123459310520263
+
+point1 = np.array([2.16999944,0.87723986,1.20092625])
+point2 = np.array([2.20795155,1.88721871,0.63301012])
+a, b, c, d =
+
+
 fig = plt.figure()
 plot_surface(a, b, c, d)
 plot_coordinate(point1)
 plot_coordinate(point2)
+plt.gca().set_xlim3d(0, 1)
+plt.gca().set_ylim3d(0, 1)
+plt.gca().set_zlim3d(0, 1)
+
 
 ax = Axes3D(fig)
 

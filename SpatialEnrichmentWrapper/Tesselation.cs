@@ -114,7 +114,8 @@ namespace SpatialEnrichment
 
             //EstimatedCellCount = ((long)Lines.Count * (Lines.Count - 1)) / 2.0 + Lines.Count + 1;
             DepletedLines = new bool[Lines.Count];
-            Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(), string.Format(@"lines_{0}.csv", StaticConfigParams.filenamesuffix));
+            Generics.SaveToCSV(Lines.Select(l => new Coordinate(l.Slope, l.Intercept)).ToList(),
+                $@"lines_{StaticConfigParams.filenamesuffix}.csv", true);
         }
 
         public void LineSweep()

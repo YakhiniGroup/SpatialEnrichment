@@ -93,7 +93,7 @@ namespace SpatialEnrichment
                         throw new ArgumentException("Input file not found!");
                 else
                 {
-                    var res = RandomizeCoordinatesAndSave(numcoords);
+                    var res = RandomizeCoordinatesAndSave(numcoords, out var pivot);
                     coordinates = res.Item1;
                     labels = res.Item2;
                 }
@@ -209,8 +209,9 @@ namespace SpatialEnrichment
             wrtr.Wait();
         }
 
-        public static Tuple<List<ICoordinate>, List<bool>> RandomizeCoordinatesAndSave(int numcoords, bool save=true)
+        public static Tuple<List<ICoordinate>, List<bool>> RandomizeCoordinatesAndSave(int numcoords, out ICoordinate pivotCoord, bool save=true)
         {
+            pivotCoord = null;
             List<ICoordinate> coordinates = new List<ICoordinate>();
             List<bool> labels = new List<bool>();
             bool instance_created = false;
@@ -227,6 +228,7 @@ namespace SpatialEnrichment
                         labels.Add(StaticConfigParams.rnd.NextDouble() > StaticConfigParams.CONST_NEGATIVELABELRATE);
                     }        
                 }
+
                 if ((Config.ActionList & Actions.Instance_PlantedSingleEnrichment) != 0)
                 {
                     for (var i = 0; i < numcoords; i++)
@@ -234,7 +236,6 @@ namespace SpatialEnrichment
                             coordinates.Add(Coordinate.MakeRandom());
                         else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
                             coordinates.Add(Coordinate3D.MakeRandom());
-                    ICoordinate pivotCoord = null;
                     if (StaticConfigParams.RandomInstanceType == typeof(Coordinate))
                         pivotCoord = Coordinate.MakeRandom();
                     else if (StaticConfigParams.RandomInstanceType == typeof(Coordinate3D))
@@ -242,7 +243,8 @@ namespace SpatialEnrichment
 
                     var prPos = (int) Math.Round((1.0 - StaticConfigParams.CONST_NEGATIVELABELRATE) * numcoords);
                     mHGJumper.Initialize(prPos, numcoords - prPos);
-                    coordinates = coordinates.OrderBy(t => t.EuclideanDistance(pivotCoord)).ToList();
+                    var coord = pivotCoord;
+                    coordinates = coordinates.OrderBy(t => t.EuclideanDistance(coord)).ToList();
                     labels = mHGJumper.SampleSignificantEnrichmentVector(1e-3).ToList();
                     Console.WriteLine($"Instantiated sample with p={mHGJumper.minimumHypergeometric(labels.ToArray()).Item1:e} around pivot {pivotCoord.ToString()}");
                     mHGJumper.optHGT = 0.05;

@@ -196,6 +196,7 @@ namespace SpatialEnrichment.Helpers
             var mHGT = 1.1;
             var currIndex = 0;
             var k = 0;
+            bool newOpt = false;
             //OptDistVec is a vector that counts for each '1' in the binary vector the minimum number of 1's needed directly after it for a significant p-value
             var OptDistVec = new int[Ones+1];
             for (var i = 0; i < Ones + 1; i++)
@@ -223,7 +224,7 @@ namespace SpatialEnrichment.Helpers
                     else
                     {
                         optHGT = currHGT;
-                        Console.WriteLine("new mHG OPT={0}",optHGT);
+                        newOpt = true;
                     }
                 }
             }
@@ -244,7 +245,8 @@ namespace SpatialEnrichment.Helpers
                     pval = mHGT * B;
                     break;
             }
-
+            if (newOpt)
+                Console.WriteLine("new mHG OPT={0}", pval);
             return new Tuple<double, int, int[]>(pval, currIndex + 1, OptDistVec);
         }
 

@@ -803,6 +803,9 @@ namespace SpatialEnrichment
             lock (locker)
             {
                 _mHG = mHGJumper.minimumHypergeometric(InducedLabledVector, -1, -1, correctionType);
+                if (_cOm.X > 1.1 || _cOm.X < -0.1 || _cOm.Y > 1.1 || _cOm.Y < -0.1)
+                    _mHG = new Tuple<double, int, int[]>(1.0, 0, _mHG.Item3);
+
                 Conf.mHGlist.Add(new Tuple<double, int>(mHG.Item1, Interlocked.Increment(ref Conf.computedMHGs)));
             }
             return _mHG;

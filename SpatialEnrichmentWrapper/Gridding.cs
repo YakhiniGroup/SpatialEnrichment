@@ -23,12 +23,11 @@ namespace SpatialEnrichmentWrapper
             elementEnumerator = pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
-        public void GeneratePivotGrid(long numsamples, int dim=2)
+        public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
         {
             producer = Task.Run(() =>
             {
                 var resolution = Math.Pow(numsamples, 1.0/dim);
-                const double buffer = 0.1;
                 for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
                 for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
                     switch (dim)
