@@ -7,6 +7,7 @@ using SpatialEnrichment;
 using System.Collections.Concurrent;
 using System.Threading;
 using Accord.Math;
+using SpatialEnrichment.Helpers;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -16,7 +17,7 @@ namespace SpatialEnrichmentWrapper
         private BlockingCollection<ICoordinate> pivots;
         private IEnumerator<ICoordinate> elementEnumerator;
         public ICoordinate NextPivot => elementEnumerator.MoveNext() ? elementEnumerator.Current : null;
-
+        public long NumPivots = 0;
         public Gridding()
         {
             pivots = new BlockingCollection<ICoordinate>(10000);
@@ -62,13 +63,15 @@ namespace SpatialEnrichmentWrapper
                         pairs.Add(new Tuple<ICoordinate, ICoordinate>(new Coordinate(0, 0), new Coordinate(jitterscale, -20)));
                         break;
                     case 3:
-                        pairs.Add(new Tuple<ICoordinate, ICoordinate>(new Coordinate3D(0, 0, 0), new Coordinate3D(jitterscale, jitterscale, -20)));
+                        pairs.Add(new Tuple<ICoordinate, ICoordinate>(new Coordinate3D(0, 0, 0), new Coordinate3D(jitterscale, -20, jitterscale)));
                         break;
                 }
-                
-                Parallel.For(0, numsamples, (i) =>
+
+                var exhaustiveGroups = pairs.DifferentCombinations(problemDim);
+                Parallel.ForEach(exhaustiveGroups, (inducerLst, loopState) =>
                 {
-                    var inducers = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(problemDim).ToList();
+                    
+                    var inducers = inducerLst.ToList();
                     ICoordinate intersectionCoord, first_coord, second_coord, third_coord, jitteredPivot = null;
                     switch (problemDim)
                     {
@@ -82,8 +85,8 @@ namespace SpatialEnrichmentWrapper
                             var second_posdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
                             var second_negdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
                             //Find local minima directions.
-                            first_coord = first_posdir > first_negdir ? 
-                                new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, first_posdir) : 
+                            first_coord = first_posdir > first_negdir ?
+                                new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, first_posdir) :
                                 new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, first_negdir);
                             second_coord = second_posdir > second_negdir ?
                                 new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, second_posdir) :
@@ -113,16 +116,24 @@ namespace SpatialEnrichmentWrapper
                             intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
                             //empirical gradients dy
                             first_coord = (Coordinate3D)intersectionCoord + firstbisectorPlane.Normal.Scale(jitterscale);
-                            second_coord= (Coordinate3D)intersectionCoord + secondbisectorPlane.Normal.Scale(jitterscale);
+                            second_coord = (Coordinate3D)intersectionCoord + secondbisectorPlane.Normal.Scale(jitterscale);
                             third_coord = (Coordinate3D)intersectionCoord + thirdbisectorPlane.Normal.Scale(jitterscale);
                             jitteredPivot = new Coordinate3D((first_coord.GetDimension(0) + second_coord.GetDimension(0) + third_coord.GetDimension(0)) / 3.0,
                                                              (first_coord.GetDimension(1) + second_coord.GetDimension(1) + third_coord.GetDimension(1)) / 3.0,
                                                              (first_coord.GetDimension(2) + second_coord.GetDimension(2) + third_coord.GetDimension(2)) / 3.0);
                             break;
                     }
-                    
                     pivots.Add(jitteredPivot);
+                    if(Interlocked.Increment(ref NumPivots) >= numsamples)
+                        loopState.Stop();
                 });
+
+                /*
+                Parallel.For(0, numsamples, (i) =>
+                {
+                    var inducers = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(problemDim).ToList();
+                });
+                */
                 pivots.CompleteAdding();
             });
         }
