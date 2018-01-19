@@ -187,12 +187,11 @@ namespace SpatialEnrichment.Helpers
         }
 
 
-        public static Tuple<double, int, int[]> minimumHypergeometric(bool[] binVec, int tN = -1, int tB = -1, mHGCorrectionType correctMultiHypothesis = mHGCorrectionType.Exact)
+        public static Tuple<double, int, int[]> minimumHypergeometric(IEnumerable<bool> binVec, int tN = -1, int tB = -1, mHGCorrectionType correctMultiHypothesis = mHGCorrectionType.Exact, bool abortIfSubOpt = false)
         {
-            var N = tN > 0 ? tN : binVec.Length;
-            var K = tB > 0 ? tB : binVec.Sum(val => val ? 1 : 0);
-            var B = tB > 0 ? tB : binVec.Sum(val => !val ? 1 : 0);
-            var currHGT = 1.0;
+            var N = tN > 0 ? tN : Ones+Zeros;
+            var K = tB > 0 ? tB : Ones;
+            var B = tB > 0 ? tB : Zeros;
             var mHGT = 1.1;
             var currIndex = 0;
             var k = 0;
@@ -202,12 +201,13 @@ namespace SpatialEnrichment.Helpers
             for (var i = 0; i < Ones + 1; i++)
                 OptDistVec[i] = Ones; // default max step size (int.maxvalue)
             for (var i = 0; i < Ones + 1; i++) if (HGTmat[1, i] <= optHGT.Value) OptDistVec[0] = Math.Min(OptDistVec[0], i);
-            for (var n = 0; n < binVec.Length; n++)
+            var n = 0;
+            foreach (var el in binVec)
             {
-                if (binVec[n])
+                if (el)
                 {
                     k++;
-                    currHGT = HGTmat[n - k + 1, k];
+                    var currHGT = HGTmat[n - k + 1, k]; //[num zeros, num ones]
                     //currHGT = ScoreMap[currHG];
                     if (currHGT < mHGT)
                     {
@@ -215,6 +215,8 @@ namespace SpatialEnrichment.Helpers
                         mHGT = currHGT;
                     }
                     //check distance to optimum
+                    if (!newOpt && abortIfSubOpt && HGTmat[n - k + 1, Ones] > optHGT)
+                        return new Tuple<double, int, int[]>(1.0, -1, new int[0]);
                     if (optHGT.HasValue && optHGT <= currHGT)
                     {
                         for (var i = k; i < Ones+1; i++)
@@ -227,6 +229,7 @@ namespace SpatialEnrichment.Helpers
                         newOpt = true;
                     }
                 }
+                n++;
             }
             //for (var i = 0; i < Ones; i++) if(OptDistVec[i] > Ones) OptDistVec[i] = 1; //this happens when we cannot fulfil the required number of ones at this threshold.
             double pval = -1;
@@ -245,8 +248,7 @@ namespace SpatialEnrichment.Helpers
                     pval = mHGT * B;
                     break;
             }
-            if (newOpt)
-                Console.WriteLine("new mHG OPT={0}", pval);
+            //if (newOpt) Console.WriteLine("new mHG OPT={0}", pval);
             return new Tuple<double, int, int[]>(pval, currIndex + 1, OptDistVec);
         }
 

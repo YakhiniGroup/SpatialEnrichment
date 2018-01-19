@@ -133,9 +133,9 @@ namespace SpatialEnrichmentWrapper
 
         public double EuclideanDistance(ICoordinate other)
         {
-            return Math.Sqrt(Math.Pow(this.X - ((Coordinate3D)other).X, 2) + 
-                             Math.Pow(this.Y - ((Coordinate3D)other).Y, 2) +
-                             Math.Pow(this.Z - ((Coordinate3D)other).Z, 2));
+            return Math.Sqrt((this.X - ((Coordinate3D)other).X) * (this.X - ((Coordinate3D)other).X) + 
+                             (this.Y - ((Coordinate3D)other).Y) * (this.Y - ((Coordinate3D)other).Y) +
+                             (this.Z - ((Coordinate3D)other).Z) * (this.Z - ((Coordinate3D)other).Z));
         }
 
         public static ICoordinate MakeRandom()

@@ -14,14 +14,14 @@ namespace SpatialEnrichmentWrapper
     public class Gridding
     {
         private Task producer;
-        private BlockingCollection<ICoordinate> pivots;
+        public BlockingCollection<ICoordinate> Pivots;
         private IEnumerator<ICoordinate> elementEnumerator;
         public ICoordinate NextPivot => elementEnumerator.MoveNext() ? elementEnumerator.Current : null;
         public long NumPivots = 0;
         public Gridding()
         {
-            pivots = new BlockingCollection<ICoordinate>(10000);
-            elementEnumerator = pivots.GetConsumingEnumerable().GetEnumerator();
+            Pivots = new BlockingCollection<ICoordinate>(5000);
+            elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
         public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
@@ -34,15 +34,15 @@ namespace SpatialEnrichmentWrapper
                     switch (dim)
                     {
                         case 2:
-                            pivots.Add(new Coordinate(i, j));
+                            Pivots.Add(new Coordinate(i, j));
                             break;
                         case 3:
                             for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
-                                pivots.Add(new Coordinate3D(i, j, k));
+                                Pivots.Add(new Coordinate3D(i, j, k));
                             break;
                     }
                 
-                pivots.CompleteAdding();
+                Pivots.CompleteAdding();
             });
         }
 
@@ -67,10 +67,12 @@ namespace SpatialEnrichmentWrapper
                         break;
                 }
 
-                var exhaustiveGroups = pairs.DifferentCombinations(problemDim);
-                Parallel.ForEach(exhaustiveGroups, (inducerLst, loopState) =>
+                //Lazily generate all (upto ~numsamples) permutations of bisectors pairs (2D) or triplets (3D)
+                var exhaustiveGroups = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble())
+                    .DifferentCombinations(problemDim);
+
+                Parallel.ForEach(exhaustiveGroups, new ParallelOptions() {MaxDegreeOfParallelism = 2}, (inducerLst, loopState) =>
                 {
-                    
                     var inducers = inducerLst.ToList();
                     ICoordinate intersectionCoord, first_coord, second_coord, third_coord, jitteredPivot = null;
                     switch (problemDim)
@@ -93,12 +95,6 @@ namespace SpatialEnrichmentWrapper
                                 new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, second_negdir);
                             //averaging ensures we are in the exact cell who's bottom-most coordinate is the intersection coord.
                             jitteredPivot = new Coordinate(first_coord.GetDimension(0) + second_coord.GetDimension(0) / 2.0, first_coord.GetDimension(1) + second_coord.GetDimension(1) / 2.0);
-                            /*
-                            // Note: I abandoned the Random sampled jitter strategy since this simpler strategy ensures a 1-1 mapping between an intersectionCoord and a cell (up to scale).
-                            var jitteredPivot = new Coordinate(
-                                intersectionCoord.X + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale),
-                                intersectionCoord.Y + GeometryHelpers.SampleGaussian(StaticConfigParams.rnd, 0.0, jitterscale));
-                            */
                             break;
                         case 3:
                             var firstbisectorPlane = Plane.Bisector((Coordinate3D)inducers[0].Item1, (Coordinate3D)inducers[0].Item2);
@@ -123,7 +119,7 @@ namespace SpatialEnrichmentWrapper
                                                              (first_coord.GetDimension(2) + second_coord.GetDimension(2) + third_coord.GetDimension(2)) / 3.0);
                             break;
                     }
-                    pivots.Add(jitteredPivot);
+                    Pivots.Add(jitteredPivot);
                     if(Interlocked.Increment(ref NumPivots) >= numsamples)
                         loopState.Stop();
                 });
@@ -134,13 +130,13 @@ namespace SpatialEnrichmentWrapper
                     var inducers = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(problemDim).ToList();
                 });
                 */
-                pivots.CompleteAdding();
+                Pivots.CompleteAdding();
             });
         }
 
         public IEnumerable<ICoordinate> GetPivots()
         {
-            foreach (var el in pivots.GetConsumingEnumerable())
+            foreach (var el in Pivots.GetConsumingEnumerable())
                 yield return el;
         }
 

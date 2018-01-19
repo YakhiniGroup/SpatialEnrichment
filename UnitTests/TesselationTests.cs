@@ -66,14 +66,30 @@ namespace UnitTests
         [TestMethod]
         public void Empirical3DSamplingTest()
         {
-            var filename = @"C:\Users\shaybe\Dropbox\Thesis - PHd\SpatialEnrichment\Caulobacter\transferases\phosphoribosyltransferase_3d.csv";
+            var filename = @"C:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\phosphoribosyltransferase_3d.csv";
             var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
                 new Tuple<ICoordinate, bool>(
                     new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])),
-                    bool.Parse(sl[3]))).ToList();
+                    sl[3]=="1")).ToList();
+            mHGJumper.Initialize(data.Count(v=>v.Item2), data.Count(v => !v.Item2));
             var empiricalGrid = new Gridding();
-            empiricalGrid.GenerateEmpricialDensityGrid(10000, data);
-            var grid = empiricalGrid.GetPivots().ToList();
+            empiricalGrid.GenerateEmpricialDensityGrid(long.MaxValue, data);
+            var smph = new SemaphoreSlim(50);
+            var mHGval = 1.0;
+            var locker = new object();
+            foreach (var pivot in empiricalGrid.Pivots.GetConsumingEnumerable())
+                Task.Run(() =>
+                {
+                    smph.WaitAsync();
+                    var currval = mHGJumper.minimumHypergeometric(data.OrderBy(c => c.Item1.EuclideanDistance(pivot))
+                        .Select(c => c.Item2).ToArray()).Item1;
+                    lock (locker)
+                    {
+                        mHGval = Math.Min(currval, mHGval);
+                    }
+                    //Console.Write($"\r\r\r\r\r\r\r\r\r\r Pivot seen#{empiricalGrid.NumPivots} curr mHG={mHGval}");
+                });
+            Console.WriteLine(mHGval);
         }
 
 

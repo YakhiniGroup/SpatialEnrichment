@@ -17,7 +17,7 @@ namespace SpatialEnrichmentWrapper
         Instance_Uniform = 1 << 0,                  //Generates instance by random uniform assignment of label
         Instance_PlantedSingleEnrichment = 1 << 1,  //Deterministic and plants all 1's around one pivot
         Search_Exhaustive = 1 << 2,                 //Covers all cells
-        Search_Originals = 1 << 3,                  //Covers all original points as potential pivots
+        Search_Originals = 1 << 3,                  //Covers all original points as potential Pivots
         Search_CellSkipping = 1 << 4,          //Finds cell by sample coordinate
         Search_GradientDescent = 1 << 5,            //Only crosses into better cells
         Program_RandomConstSeed = 1 << 6,           //If used Const for seed 
@@ -57,7 +57,7 @@ namespace SpatialEnrichmentWrapper
 
         public Actions ActionList =
             //Actions.Experiment_ComparePivots |
-            Actions.Experiment_SampleLines | 
+            //Actions.Experiment_SampleLines | 
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
