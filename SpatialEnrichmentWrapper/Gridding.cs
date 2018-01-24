@@ -24,8 +24,18 @@ namespace SpatialEnrichmentWrapper
             elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
+        public void ReturnPivots(IEnumerable<ICoordinate> data)
+        {
+            foreach (var coordinate in data)
+            {
+                Pivots.Add(coordinate);
+            }
+            Pivots.CompleteAdding();
+        }
+
         public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
         {
+            //todo implement some sort of diagonaization to enumerate with increasing resolution indefinetly
             producer = Task.Run(() =>
             {
                 var resolution = Math.Pow(numsamples, 1.0/dim);

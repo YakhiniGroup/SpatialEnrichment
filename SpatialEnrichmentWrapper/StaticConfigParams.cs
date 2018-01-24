@@ -31,6 +31,13 @@ namespace SpatialEnrichmentWrapper
         Experiment_SampleLines = 1 << 14
     }
 
+    public enum SamplingType
+    {
+        Pivot,
+        Emprical,
+        Grid
+    }
+
     public static class StaticConfigParams
     {
         public static bool WriteToCSV = false; //writes cell to files

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
+using System.Threading;
 using System.Threading.Tasks;
 using SpatialEnrichmentWrapper;
 
@@ -190,7 +191,6 @@ namespace SpatialEnrichment.Helpers
         public static Tuple<double, int, int[]> minimumHypergeometric(IEnumerable<bool> binVec, int tN = -1, int tB = -1, mHGCorrectionType correctMultiHypothesis = mHGCorrectionType.Exact, bool abortIfSubOpt = false)
         {
             var N = tN > 0 ? tN : Ones+Zeros;
-            var K = tB > 0 ? tB : Ones;
             var B = tB > 0 ? tB : Zeros;
             var mHGT = 1.1;
             var currIndex = 0;
@@ -225,8 +225,11 @@ namespace SpatialEnrichment.Helpers
                     }
                     else
                     {
-                        optHGT = currHGT;
                         newOpt = true;
+                        lock (concLocker)
+                        {
+                            optHGT = currHGT;
+                        }
                     }
                 }
                 n++;

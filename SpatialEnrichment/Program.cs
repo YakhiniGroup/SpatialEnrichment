@@ -19,7 +19,9 @@ namespace SpatialEnrichment
         public static ConfigParams Config;
         static void Main(string[] args)
         {
-            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])));
+            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Pivot);
+            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Grid);
+            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Emprical);
             return;
             var options = new CommandlineParameters();
             var isValid = Parser.Default.ParseArgumentsStrict(args, options);
@@ -183,28 +185,42 @@ namespace SpatialEnrichment
             }
         }
 
-        public static void ComputeSamplingGrid(string filename, TimeSpan maxDuration)
+        public static void ComputeSamplingGrid(string filename, TimeSpan maxDuration, SamplingType samplingType)
         {
+            Console.WriteLine(samplingType);
             var sw = Stopwatch.StartNew();
              var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
                 new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
             var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
-            var empiricalGrid = new Gridding();
-            empiricalGrid.GenerateEmpricialDensityGrid(long.MaxValue, normalizedData.Zip(data,(a,b)=>new Tuple<ICoordinate,bool>(a,b.Item2)).ToList());
+            mHGJumper.optHGT = 1;
+            var gridGen = new Gridding();
+            switch (samplingType)
+            {
+                case SamplingType.Emprical:
+                    gridGen.GenerateEmpricialDensityGrid(long.MaxValue, normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList());
+                    break;
+                case SamplingType.Grid:
+                    gridGen.GeneratePivotGrid(1000000, 3);
+                    break;
+                case SamplingType.Pivot:
+                    gridGen.ReturnPivots(normalizedData);
+                    break;
+            }
             var smph = new SemaphoreSlim(50);
-            var mHGval = mHGJumper.optHGT;
+            
+            var mHGval = 2.0;
             var locker = new object();
             long numcomputed = 0;
-            ICoordinate mHGPos = new Coordinate3D(0,0,0);
+            ICoordinate mHgPos = new Coordinate3D(0,0,0);
             long numcomputedAtOpt = 1;
             var left = Console.CursorLeft;
             var top = Console.CursorTop;
-
-            foreach (var pivot in empiricalGrid.Pivots.GetConsumingEnumerable())
+            var tasklst = new List<Task>();
+            foreach (var pivot in gridGen.Pivots.GetConsumingEnumerable())
             {
-                Task.Run(() =>
+                tasklst.Add(Task.Run(() =>
                 {
                     smph.WaitAsync();
                     var currval = mHGJumper.minimumHypergeometric(data.OrderBy(c => c.Item1.EuclideanDistance(pivot))
@@ -214,7 +230,7 @@ namespace SpatialEnrichment
                         if (currval.Item1 < mHGval)
                         {
                             mHGval = currval.Item1;
-                            mHGPos = pivot;
+                            mHgPos = pivot;
                             numcomputedAtOpt = numcomputed;
                         }
                     }
@@ -222,14 +238,21 @@ namespace SpatialEnrichment
                     if (curcomp % 10000 == 0)
                     {
                         Console.Write($"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\rPivot #(computed/observed): {curcomp:N0}/" +
-                            $"{empiricalGrid.NumPivots:N0}. Curr mHG={mHGval}. Bonferroni={mHGval * numcomputedAtOpt}. Position:{mHGPos.ToString(@"0.00")}");
+                            $"{gridGen.NumPivots:N0}. Curr mHG={mHGval}. Bonferroni={mHGval * numcomputedAtOpt}. Position:{mHgPos.ToString(@"0.00")}");
                         Console.SetCursorPosition(left, top);
                     }
-                });
+                }));
                 if (sw.Elapsed > maxDuration)
                     break;
             }
-            File.WriteAllLines(Path.ChangeExtension(filename, ".res"),new List<string>(){$"{mHGval},{numcomputedAtOpt},{mHGPos.ToString(@"0.000")}"});
+
+            Task.WaitAll(tasklst.ToArray());
+            while (smph.CurrentCount > 0)
+            {
+                Thread.SpinWait(1000);
+            }
+            File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
+                new List<string>() { $"{samplingType}: {mHGval},{numcomputedAtOpt},{nrm.DeNormalize(mHgPos).ToString(@"0.000")}" });
         }
 
         public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)
