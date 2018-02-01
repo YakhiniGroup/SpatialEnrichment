@@ -43,7 +43,7 @@ namespace SpatialExperiments
                     sizeid++;
                     for (var i = 0; i < samples[sizeid]; i++)
                     {
-                        var pos = (int)Math.Round((rnd.NextDouble() / 2.0) * N); //less then half.
+                        var pos = (int)Math.Max(1, Math.Round((rnd.NextDouble() / 2.0) * N)); //less then half.
                         var neg = N - pos;
                         mHGJumper.Initialize(pos, neg);
                         var numCells = MathExtensions.NChooose3(mHGJumper.Lines + 1);
@@ -71,7 +71,7 @@ namespace SpatialExperiments
                             var uniformgrid = new Gridding();
                             uniformgrid.GeneratePivotGrid(resolution, 3);
                             var unfiromres = uniformgrid.EvaluateDataset(dataset);
-                            File.WriteAllText($"Experiments\\{N}\\data_{i}_optempirical_{resolution}.csv", $"{unfiromres.Item1},{unfiromres.Item2},{unfiromres.Item3}");
+                            File.WriteAllText($"Experiments\\{N}\\data_{i}_optunifrom_{resolution}.csv", $"{unfiromres.Item1},{unfiromres.Item2},{unfiromres.Item3}");
                             graphfile.Write($",{unfiromres.Item2},{unfiromres.Item3}");
                         }
                         graphfile.WriteLine();
