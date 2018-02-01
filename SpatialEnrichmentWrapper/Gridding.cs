@@ -83,6 +83,7 @@ namespace SpatialEnrichmentWrapper
                             iterfound = curriter;
                         }
                     }
+                    smph.Release();
                 }));
             }
             Task.WaitAll(tsks.ToArray());
