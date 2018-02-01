@@ -13,6 +13,16 @@ namespace SpatialEnrichmentWrapper
     {
         public readonly double X, Y, Z;
         public int? CoordId;
+
+        public Coordinate3D(string str)
+        {
+            var crds = str.Split(',').Select(Convert.ToDouble).ToList();
+            X = crds[0];
+            Y= crds[1];
+            Z= crds[2];
+        }
+
+
         public Coordinate3D(double x, double y, double z)
         {
             if (double.IsNaN(x) || double.IsInfinity(x)
@@ -61,6 +71,11 @@ namespace SpatialEnrichmentWrapper
         public string ToString(string fmt)
         {
             return X.ToString(fmt) + "," + Y.ToString(fmt) + "," + Z.ToString(fmt);
+        }
+
+        public string Serialize()
+        {
+            return ToString();
         }
 
         public static Coordinate3D operator +(Coordinate3D curr, Coordinate3D other)

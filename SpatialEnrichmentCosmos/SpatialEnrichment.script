@@ -1,0 +1,79 @@
+﻿//Script GUID:89cbe7a4-40c2-4068-8427-c0557c3ab61c
+//Used for tracking history
+#DECLARE input_filename string = @"cellular_amino_acid_catabolic_process.csv";
+#DECLARE input_data string = string.Format(@"/my/{0}",@input_filename);
+#DECLARE output_file string = string.Format(@"/my/test.csv");
+RESOURCE @input_data;
+
+#DECLARE LogicDLL string = string.Format(@"/my/SpatialEnrichmentWrapper.dll");
+REFERENCE @LogicDLL;
+RESOURCE @LogicDLL;
+USING SpatialEnrichmentWrapper;
+
+#DECLARE AccordDLL string = string.Format(@"/my/Accord.dll");
+REFERENCE @AccordDLL;
+RESOURCE @AccordDLL;
+#DECLARE AccordMathDLL string = string.Format(@"/my/Accord.Math.dll");
+REFERENCE @AccordMathDLL;
+RESOURCE @AccordMathDLL;
+#DECLARE AccordMathCoreDLL string = string.Format(@"/my/Accord.Math.Core.dll");
+REFERENCE @AccordMathCoreDLL;
+RESOURCE @AccordMathCoreDLL;
+
+USING Accord.Math;
+
+coordinates =
+    EXTRACT X : double,
+            Y : double,
+            Z : double,
+            Lstr : string
+    FROM @input_data
+    USING DefaultTextExtractor("-d", ",");
+
+coordObjects = SELECT new Coordinate3D(X,Y,Z) AS Coord, Lstr == "1" AS L FROM coordinates;
+
+[PARTITION(RowNum)=(PARTITIONCOUNT=2000)]
+CoordPairs = SELECT new List<Coordinate3D> {S1.Coord, S2.Coord} AS C,
+                    new Tuple<bool, bool>(S1.L, S2.L) AS L,
+                    ROW_NUMBER() OVER () AS RowNum
+        FROM coordObjects AS S1
+        CROSS JOIN coordObjects AS S2
+    HAVING L.Item1 != L.Item2;
+
+//CoordPairsList = SELECT LIST(C) AS Pairs FROM CoordPairs;
+
+Pivots = PROCESS CoordPairs USING SpatialEnrichmentCosmosDLL.LineZoneReducer(filename:@input_filename);
+
+//Pivots = PROCESS CellInducers USING SpatialEnrichmentCosmosDLL.PivotGenerator();
+
+mHGs = PROCESS Pivots USING SpatialEnrichmentCosmosDLL.PivotProcessor(filename:@input_filename);
+
+outtext =
+    SELECT TOP 20 Pivot,
+                  Pval,
+                  Thresh
+    FROM mHGs
+    ORDER BY Pval ASC;
+
+OUTPUT outtext TO @output_file USING DefaultTextOutputter("-d",",");
+
+
+#CS
+
+public static class ScopeFuncs
+{
+    public static bool TupleDistinct(List<Coordinate3D> A, List<Coordinate3D> B, List<Coordinate3D> C)
+    {
+        return 
+        (!A[0].Equals(B[0]) || !A[1].Equals(B[1])) && 
+        (!A[0].Equals(C[0]) || !A[1].Equals(C[1])) && 
+        (!B[0].Equals(C[0]) || !B[1].Equals(C[1]));
+    }
+
+    public static List<ICoordinate> ToListVecs(ICoordinate a, ICoordinate b, ICoordinate c)
+    {
+        return new List<ICoordinate>() { a,b,c };
+    }
+}
+
+#ENDCS

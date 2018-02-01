@@ -31,3 +31,6 @@ UnitTests/bin/
 UnitTests/obj/
 AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/obj/
 SpatialEnrichment/bin/
+SpatialEnrichmentCosmosDLL/bin/
+SpatialEnrichmentCosmosDLL/obj/
+SpatialEnrichmentCosmos/bin/

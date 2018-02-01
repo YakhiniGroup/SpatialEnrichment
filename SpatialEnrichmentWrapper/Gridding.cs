@@ -84,70 +84,95 @@ namespace SpatialEnrichmentWrapper
                 Parallel.ForEach(exhaustiveGroups, new ParallelOptions() {MaxDegreeOfParallelism = 2}, (inducerLst, loopState) =>
                 {
                     var inducers = inducerLst.ToList();
-                    ICoordinate intersectionCoord, first_coord, second_coord, third_coord, jitteredPivot = null;
-                    switch (problemDim)
-                    {
-                        case 2:
-                            var firstbisectorLine = Line.Bisector((Coordinate)inducers[0].Item1, (Coordinate)inducers[0].Item2, isCounted: false);
-                            var secondbisectorLine = Line.Bisector((Coordinate)inducers[1].Item1, (Coordinate)inducers[1].Item2, isCounted: false);
-                            intersectionCoord = firstbisectorLine.Intersection(secondbisectorLine);
-                            //empirical gradient
-                            var first_posdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
-                            var first_negdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
-                            var second_posdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
-                            var second_negdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
-                            //Find local minima directions.
-                            first_coord = first_posdir > first_negdir ?
-                                new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, first_posdir) :
-                                new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, first_negdir);
-                            second_coord = second_posdir > second_negdir ?
-                                new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, second_posdir) :
-                                new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, second_negdir);
-                            //averaging ensures we are in the exact cell who's bottom-most coordinate is the intersection coord.
-                            jitteredPivot = new Coordinate(first_coord.GetDimension(0) + second_coord.GetDimension(0) / 2.0, first_coord.GetDimension(1) + second_coord.GetDimension(1) / 2.0);
-                            break;
-                        case 3:
-                            var firstbisectorPlane = Plane.Bisector((Coordinate3D)inducers[0].Item1, (Coordinate3D)inducers[0].Item2);
-                            var secondbisectorPlane = Plane.Bisector((Coordinate3D)inducers[1].Item1, (Coordinate3D)inducers[1].Item2);
-                            var thirdbisectorPlane = Plane.Bisector((Coordinate3D)inducers[2].Item1, (Coordinate3D)inducers[2].Item2);
-                            //We find the intersection of three planes by solving a system of linear equations.
-                            double[,] matrix =
-                            {
-                                { firstbisectorPlane.Normal.X, firstbisectorPlane.Normal.Y, firstbisectorPlane.Normal.Z },
-                                { secondbisectorPlane.Normal.X, secondbisectorPlane.Normal.Y, secondbisectorPlane.Normal.Z },
-                                { thirdbisectorPlane.Normal.X, thirdbisectorPlane.Normal.Y, thirdbisectorPlane.Normal.Z }
-                            };
-                            double[,] rightSide = { { -firstbisectorPlane.D }, { -secondbisectorPlane.D }, { -thirdbisectorPlane.D } };
-                            var x = Matrix.Solve(matrix, rightSide, leastSquares: true);
-                            intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
-                            //empirical gradients dy
-                            first_coord = (Coordinate3D)intersectionCoord + firstbisectorPlane.Normal.Scale(jitterscale);
-                            second_coord = (Coordinate3D)intersectionCoord + secondbisectorPlane.Normal.Scale(jitterscale);
-                            third_coord = (Coordinate3D)intersectionCoord + thirdbisectorPlane.Normal.Scale(jitterscale);
-                            jitteredPivot = new Coordinate3D((first_coord.GetDimension(0) + second_coord.GetDimension(0) + third_coord.GetDimension(0)) / 3.0,
-                                                             (first_coord.GetDimension(1) + second_coord.GetDimension(1) + third_coord.GetDimension(1)) / 3.0,
-                                                             (first_coord.GetDimension(2) + second_coord.GetDimension(2) + third_coord.GetDimension(2)) / 3.0);
-                            break;
-                    }
+                    var jitteredPivot = GetPivotForCoordSet(inducers, jitterscale);
                     Pivots.Add(jitteredPivot);
                     if(Interlocked.Increment(ref NumPivots) >= numsamples)
                         loopState.Stop();
                 });
-
-                /*
-                Parallel.For(0, numsamples, (i) =>
-                {
-                    var inducers = pairs.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(problemDim).ToList();
-                });
-                */
+                
                 Pivots.CompleteAdding();
             });
+        }
+
+        public static ICoordinate GetPivotForCoordSet(List<List<Coordinate3D>> inducers, double jitterscale = 1E-7)
+        {
+            return GetPivotForCoordSet(inducers.Select(p => new Tuple<ICoordinate, ICoordinate>(p[0], p[1])).ToList(), jitterscale);
+        }
+
+        public static ICoordinate GetPivotForCoordSet(List<Tuple<ICoordinate, ICoordinate>> inducers, double jitterscale = 1E-7)
+        {
+            var problemDim = inducers.Count;
+            ICoordinate intersectionCoord, firstCoord, secondCoord;
+            ICoordinate jitteredPivot = null;
+            switch (problemDim)
+            {
+                case 2:
+                    var firstbisectorLine = Line.Bisector((Coordinate) inducers[0].Item1, (Coordinate) inducers[0].Item2,
+                        isCounted: false);
+                    var secondbisectorLine = Line.Bisector((Coordinate) inducers[1].Item1, (Coordinate) inducers[1].Item2,
+                        isCounted: false);
+                    intersectionCoord = firstbisectorLine.Intersection(secondbisectorLine);
+                    //empirical gradient
+                    var first_posdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
+                    var first_negdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
+                    var second_posdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
+                    var second_negdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
+                    //Find local minima directions.
+                    firstCoord = first_posdir > first_negdir
+                        ? new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, first_posdir)
+                        : new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, first_negdir);
+                    secondCoord = second_posdir > second_negdir
+                        ? new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, second_posdir)
+                        : new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, second_negdir);
+                    //averaging ensures we are in the exact cell who's bottom-most coordinate is the intersection coord.
+                    jitteredPivot = new Coordinate(firstCoord.GetDimension(0) + secondCoord.GetDimension(0) / 2.0,
+                        firstCoord.GetDimension(1) + secondCoord.GetDimension(1) / 2.0);
+                    break;
+                case 3:
+                    var firstbisectorPlane = Plane.Bisector((Coordinate3D) inducers[0].Item1, (Coordinate3D) inducers[0].Item2);
+                    var secondbisectorPlane =
+                        Plane.Bisector((Coordinate3D) inducers[1].Item1, (Coordinate3D) inducers[1].Item2);
+                    var thirdbisectorPlane = Plane.Bisector((Coordinate3D) inducers[2].Item1, (Coordinate3D) inducers[2].Item2);
+                    //We find the intersection of three planes by solving a system of linear equations.
+                    double[,] matrix =
+                    {
+                        {firstbisectorPlane.Normal.X, firstbisectorPlane.Normal.Y, firstbisectorPlane.Normal.Z},
+                        {secondbisectorPlane.Normal.X, secondbisectorPlane.Normal.Y, secondbisectorPlane.Normal.Z},
+                        {thirdbisectorPlane.Normal.X, thirdbisectorPlane.Normal.Y, thirdbisectorPlane.Normal.Z}
+                    };
+                    double[,] rightSide = {{-firstbisectorPlane.D}, {-secondbisectorPlane.D}, {-thirdbisectorPlane.D}};
+                    var x = matrix.Solve(rightSide, leastSquares: true);
+                    intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
+                    //empirical gradients dy
+                    firstCoord = (Coordinate3D) intersectionCoord + firstbisectorPlane.Normal.Scale(jitterscale);
+                    secondCoord = (Coordinate3D) intersectionCoord + secondbisectorPlane.Normal.Scale(jitterscale);
+                    ICoordinate thirdCoord = (Coordinate3D) intersectionCoord + thirdbisectorPlane.Normal.Scale(jitterscale);
+                    jitteredPivot = new Coordinate3D(
+                        (firstCoord.GetDimension(0) + secondCoord.GetDimension(0) + thirdCoord.GetDimension(0)) / 3.0,
+                        (firstCoord.GetDimension(1) + secondCoord.GetDimension(1) + thirdCoord.GetDimension(1)) / 3.0,
+                        (firstCoord.GetDimension(2) + secondCoord.GetDimension(2) + thirdCoord.GetDimension(2)) / 3.0);
+                    break;
+            }
+            return jitteredPivot;
         }
 
         public IEnumerable<ICoordinate> GetPivots()
         {
             foreach (var el in Pivots.GetConsumingEnumerable())
                 yield return el;
+        }
+
+        public static Tuple<double, int> EvaluatePivot(Coordinate3D p, List<Coordinate3D> coords, List<bool> labels)
+        {
+            return EvaluatePivot((ICoordinate)p, coords.Cast<ICoordinate>().ToList(), labels);
+        }
+
+        public static Tuple<double, int> EvaluatePivot(ICoordinate p, List<ICoordinate> coords, List<bool> labels)
+        {
+            var data = coords.Zip(labels, (a, b) => new {Coords = a, Labels = b}).OrderBy(c => c.Coords.EuclideanDistance(p)).Select(c => c.Labels).ToList();
+            var res = mHGJumper.minimumHypergeometric(data);
+            return new Tuple<double, int>(res.Item1,res.Item2);
+
         }
 
     }
