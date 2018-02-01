@@ -33,11 +33,13 @@ namespace SpatialExperiments
             var sizes = new int[] { 10, 20, 30, 50, 70, 90 };
             var samples = new int[] { 2000, 1000, 500, 100, 10, 10 }; //num experiments per size
             var griddepth = new int[] {1000, 10000, 100000};
+            Directory.CreateDirectory("Experiments");
 
             var sizeid = -1;
             using (var graphfile = new StreamWriter($"Experiments\\aggregated_results.csv"))
                 foreach (var N in sizes)
                 {
+                    Directory.CreateDirectory($"Experiments\\{N}");
                     sizeid++;
                     for (var i = 0; i < samples[sizeid]; i++)
                     {

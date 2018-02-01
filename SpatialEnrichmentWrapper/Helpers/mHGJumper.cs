@@ -122,6 +122,7 @@ namespace SpatialEnrichment.Helpers
         /// <returns></returns>
         public static bool[] SampleSignificantEnrichmentVector(double pValThresh = 0.05)
         {
+            pValThresh = Math.Max(pValThresh, ScoreMap.Min(v => v.Value));
             var outvec = new List<bool>();
             pathCounting(-1, out var pathCountMat);
             var pathList = new List<Tuple<int, int, double, double>>();
