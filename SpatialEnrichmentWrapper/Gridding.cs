@@ -11,6 +11,7 @@ using SpatialEnrichment.Helpers;
 
 namespace SpatialEnrichmentWrapper
 {
+    public enum GridType { Empirical, Uniform }
     public class Gridding
     {
         private Task producer;
@@ -52,6 +53,48 @@ namespace SpatialEnrichmentWrapper
                             break;
                     }
                 
+                Pivots.CompleteAdding();
+            });
+        }
+
+        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 20)
+        {
+            var smph = new SemaphoreSlim(parallelization);
+            var tsks = new List<Task>();
+            ICoordinate best = null;
+            var pval = 1.0;
+            long iterfound = -1, curriter = 0;
+            object locker = new object();
+
+            foreach (var pivot in GetPivots())
+            {
+                smph.Wait();
+                tsks.RemoveAll(t => t.IsCompleted);
+                tsks.Add(Task.Run(() => {
+                    var binvec = dataset.OrderBy(c => pivot.EuclideanDistance(c.Item1)).Select(c => c.Item2).ToList();
+                    var res = mHGJumper.minimumHypergeometric(binvec);
+                    Interlocked.Increment(ref curriter);
+                    lock (locker)
+                    {
+                        if (res.Item1 < pval)
+                        {
+                            best = pivot;
+                            pval = res.Item1;
+                            iterfound = curriter;
+                        }
+                    }
+                }));
+            }
+            Task.WaitAll(tsks.ToArray());
+            return new Tuple<ICoordinate, double, long>(best, pval, iterfound);
+        }
+
+        public void GenerateBeadPivots(List<Tuple<ICoordinate, bool>> dataset)
+        {
+            producer = Task.Run(() => {
+                foreach (var p in dataset.Select(p => p.Item1))
+                    Pivots.Add(p);
+                NumPivots = dataset.Count;
                 Pivots.CompleteAdding();
             });
         }
