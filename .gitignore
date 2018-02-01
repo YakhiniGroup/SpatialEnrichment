@@ -31,3 +31,5 @@ UnitTests/bin/
 UnitTests/obj/
 AzureFunc/SpatialEnrichmnet/SpatialEnrichmnet/obj/
 SpatialEnrichment/bin/
+SpatialExperiments/obj/
+SpatialExperiments/bin/

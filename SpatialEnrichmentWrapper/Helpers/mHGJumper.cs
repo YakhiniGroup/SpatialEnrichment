@@ -32,7 +32,8 @@ namespace SpatialEnrichment.Helpers
         public static double? optHGT = 0.05;
 
         private static double TotalPaths;
-        private static int Ones, Zeros;
+        public static int Ones, Zeros;
+        public static int Lines => Ones * Zeros;
         private static Dictionary<double, double> ScoreMap;
         
         public static void Initialize(int ones, int zeros)
@@ -474,6 +475,15 @@ namespace SpatialEnrichment.Helpers
 
     public static class MathExtensions
     {
+        public static double NChooose3(int N)
+        {
+            return (1.0 / 6.0) * (N - 2) * (N - 1) * N;
+        }
+
+        public static double NChooose2(int N)
+        {
+            return (1.0 / 2.0) * (N - 1) * N;
+        }
 
         public static double Binomial(int N, int k)
         {
