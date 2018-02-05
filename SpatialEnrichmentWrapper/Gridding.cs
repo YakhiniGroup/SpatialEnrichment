@@ -144,7 +144,7 @@ namespace SpatialEnrichmentWrapper
                     Parallel.ForEach(exhaustiveGroups, new ParallelOptions() { MaxDegreeOfParallelism = 2 }, (inducerLst, loopState) =>
                     {
                         var inducers = inducerLst.ToList();
-                        var jitteredPivots = GetPivotForCoordSet(inducers, jitterscale);
+                        var jitteredPivots = GetPivotForCoordSet(inducers, jitterscale, inorder);
                         foreach(var piv in jitteredPivots)
                             Pivots.Add(piv);
                         if (Interlocked.Increment(ref NumPivots) >= numsamples)
@@ -168,7 +168,7 @@ namespace SpatialEnrichmentWrapper
             });
         }
 
-        public static IEnumerable<ICoordinate> GetPivotForCoordSet(List<Hyperplane> inducers, double jitterscale = 1E-7)
+        public static IEnumerable<ICoordinate> GetPivotForCoordSet(List<Hyperplane> inducers, double jitterscale = 1E-7, bool inorder=false)
         {
             var problemDim = inducers.Count;
             ICoordinate intersectionCoord, firstCoord, secondCoord;
@@ -211,7 +211,7 @@ namespace SpatialEnrichmentWrapper
                     var x = matrix.Solve(rightSide);
                     intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
 
-                    for(var i=0;i < Math.Pow(2,2); i++)
+                    for(var i=0;i < Math.Pow(2,inorder ? 2 : 0); i++)
                     {
                         var signs = new BitArray(new int[] { i });
                         //empirical gradients dy
