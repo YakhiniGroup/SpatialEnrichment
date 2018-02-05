@@ -50,14 +50,19 @@ namespace SpatialExperiments
                         Console.WriteLine($"Analysis #{i} on size={N} with #cells={numCells}");
                         var dataset = SpatialEnrichmentWrapper.Helpers.SyntheticDatasets.SinglePlantedEnrichment(3);
                         File.WriteAllLines($"Experiments\\{N}\\data_{i}.csv", dataset.Select(c => c.Item1.ToString() + "," + c.Item2));
+
+                        //var se = new EnrichmentWrapper(new ConfigParams() { ActionList = Actions.Search_CellSkipping });
+                        //var res = (SpatialmHGResult3D)se.SpatialmHGWrapper3D(dataset.Select(v => new Tuple<double, double, double, bool>(v.Item1.GetDimension(0), v.Item1.GetDimension(1), v.Item1.GetDimension(2), v.Item2)).ToList()).First();
+                        //var optres = new Tuple<ICoordinate, double, long>(new Coordinate3D(res.X, res.Y, res.Z), res.pvalue, res.mHGthreshold);
                         var optgrid = new Gridding();
-                        optgrid.GenerateEmpricialDensityGrid((long)numCells, dataset);
-                        var optres = optgrid.EvaluateDataset(dataset);
+                        optgrid.GenerateEmpricialDensityGrid((long)(100*numCells), dataset, inorder:true);
+                        var optres = optgrid.EvaluateDataset(dataset, debug:"opt.csv");
+                        
                         File.WriteAllText($"Experiments\\{N}\\data_{i}_optres.csv", $"{optres.Item1},{optres.Item2},{optres.Item3}");
 
                         var beadgrid = new Gridding();
                         beadgrid.GenerateBeadPivots(dataset);
-                        var beadres = beadgrid.EvaluateDataset(dataset);
+                        var beadres = beadgrid.EvaluateDataset(dataset, debug: "bead.csv");
 
                         graphfile.Write($"{N},{i},{numCells},{optres.Item2},{optres.Item3},{beadres.Item2},{beadres.Item3}");
 

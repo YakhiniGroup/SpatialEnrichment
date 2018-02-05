@@ -152,8 +152,9 @@ namespace SpatialEnrichment
         }
     }
 
-    public class Line :IDisposable
+    public class Line :IDisposable, Hyperplane
     {
+        public const int Dimensionality = 2;
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
         public static int Count;

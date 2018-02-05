@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -167,8 +168,9 @@ namespace SpatialEnrichmentWrapper
     }
 
 
-    public class Plane
+    public class Plane : Hyperplane
     {
+        public const int Dimensionality = 3;
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
         public Coordinate3D Normal, MidPoint;
@@ -221,6 +223,15 @@ namespace SpatialEnrichmentWrapper
         {
             return Normal + "," + D;
         }
+
+        public void ToCsv(string filename)
+        {
+            using (var fileout = new StreamWriter(filename))
+            {
+                fileout.WriteLine(Normal);
+                fileout.WriteLine(MidPoint);
+            }
+        }
     }
 
     public static class Planehelpers {
@@ -238,6 +249,11 @@ namespace SpatialEnrichmentWrapper
 
             return null;
         }
+
+    }
+
+    public interface Hyperplane
+    {
 
     }
 

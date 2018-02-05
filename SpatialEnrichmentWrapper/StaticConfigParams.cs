@@ -57,7 +57,7 @@ namespace SpatialEnrichmentWrapper
     {
         //configuration parameters
         public LogWrapper Log;
-        public int SKIP_SLACK = -3; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
+        public int SKIP_SLACK = -30; // gradient skipping slack parameter. negative yields more cells. needs to be -1 due to tie-breaking of equi-scored cells!
         public double SIGNIFICANCE_THRESHOLD = 0.05;
         public int GetTopKResults = 10;
         public double FilterKFurthestZeros = 0.0; //% of 0's to throw away from data

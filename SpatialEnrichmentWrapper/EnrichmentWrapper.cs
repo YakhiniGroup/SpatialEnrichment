@@ -68,7 +68,7 @@ namespace SpatialEnrichmentWrapper
             var planeList = new ConcurrentPriorityQueue<double, Plane>(); //minheap based, smaller is better
             //Foreach perpendicular bisector plane
             for (var i = 0; i < coordinates.Count; i++)
-            for (var j = 0; j < coordinates.Count; j++)
+            for (var j = i+1; j < coordinates.Count; j++)
                 if (labels[i] != labels[j])
                 {
                     //Reduce to 2D problem
