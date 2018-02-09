@@ -44,24 +44,58 @@ namespace SpatialEnrichmentWrapper
                 var resolution = Math.Pow(numsamples, 1.0/dim);
                 for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
                 for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
-                    switch (dim)
-                    {
-                        case 2:
-                            Pivots.Add(new Coordinate(i, j));
-                            break;
-                        case 3:
-                            for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
-                                Pivots.Add(new Coordinate3D(i, j, k));
-                            break;
-                    }
+                        switch (dim)
+                        {
+                            case 2:
+                                Pivots.Add(new Coordinate(i, j));
+                                Interlocked.Increment(ref NumPivots);
+                                break;
+                            case 3:
+                                for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
+                                {
+                                    Pivots.Add(new Coordinate3D(i, j, k));
+                                    Interlocked.Increment(ref NumPivots);
+                                }
+                                break;
+                        }
                 
                 Pivots.CompleteAdding();
             });
         }
 
-        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 20, string debug=null)
+        public void GenerateRecrusivePivotGrid(long numsamples, int dim = 2, double buffer = 0.1)
         {
-            var smph = new SemaphoreSlim(parallelization);
+            //Sample 4 points in corners. 
+            //Split to 4 quadrents and repeat. 
+            //Stop if quadrent yields the same data arrangement.
+            
+            //Need to exhaust cells in same depth in recursion before proceeding
+            //for depth i, need to compare sorting for all pivots under same parent
+
+            //todo implement some sort of diagonaization to enumerate with increasing resolution indefinetly
+            producer = Task.Run(() =>
+            {
+                var resolution = Math.Pow(numsamples, 1.0 / dim);
+                for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
+                    for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
+                        switch (dim)
+                        {
+                            case 2:
+                                Pivots.Add(new Coordinate(i, j));
+                                break;
+                            case 3:
+                                for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
+                                    Pivots.Add(new Coordinate3D(i, j, k));
+                                break;
+                        }
+
+                Pivots.CompleteAdding();
+            });
+        }
+
+
+        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null)
+        {
             var tsks = new List<Task>();
             ICoordinate best = null;
             var pval = 1.0;
@@ -71,32 +105,29 @@ namespace SpatialEnrichmentWrapper
             StreamWriter outfile = null;
             if (debug != null)
                 outfile = new StreamWriter(debug);
-            
-            foreach (var pivot in GetPivots())
-            {
-                smph.Wait();
-                tsks.RemoveAll(t => t.IsCompleted);
+            for (var i = 0; i < parallelization; i++)
                 tsks.Add(Task.Run(() => {
-                    var binvec = dataset.OrderBy(c => pivot.EuclideanDistance(c.Item1)).Select(c => c.Item2).ToList();
-                    var res = mHGJumper.minimumHypergeometric(binvec);
-                    Interlocked.Increment(ref curriter);
-                    
-                    lock (locker)
+                    foreach (var pivot in GetPivots())
                     {
-                        if (res.Item1 < pval)
+                        var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2);
+                        var res = mHGJumper.minimumHypergeometric(binvec);
+                        Interlocked.Increment(ref curriter);
+                        lock (locker)
                         {
-                            best = pivot;
-                            pval = res.Item1;
-                            iterfound = curriter;
+                            if (res.Item1 < pval)
+                            {
+                                best = pivot;
+                                pval = res.Item1;
+                                iterfound = curriter;
+                            }
                         }
+                        if (debug != null)
+                            outfile.WriteLine(pivot);
                     }
-                    smph.Release();
                 }));
-                if (debug != null)
-                    outfile.WriteLine(pivot);
-            }
-            if(debug != null) outfile.Close();
+            
             Task.WaitAll(tsks.ToArray());
+            if (debug != null) outfile.Close();
             return new Tuple<ICoordinate, double, long>(best, pval, iterfound);
         }
 
@@ -110,38 +141,41 @@ namespace SpatialEnrichmentWrapper
             });
         }
 
-        public void GenerateEmpricialDensityGrid(long numsamples, List<Tuple<ICoordinate,bool>> lableddata, double jitterscale = 1E-7, bool inorder = false, string debug=null)
+        public void GenerateEmpricialDensityGrid(long numsamples, List<Tuple<ICoordinate, bool>> lableddata, int parallelism = 5, double jitterscale = 1E-7, bool inorder = false, string debug=null)
         {
             producer = Task.Run(() =>
             {
                 var pairs = new List<Tuple<ICoordinate, ICoordinate>>();
-                for (var i = 0; i < lableddata.Count-1; i++)
-                for (var j = i+1; j < lableddata.Count; j++)
-                    if (lableddata[i].Item2 != lableddata[j].Item2)
-                        pairs.Add(new Tuple<ICoordinate, ICoordinate>(lableddata[i].Item1, lableddata[j].Item1));
+                var dict = lableddata.GroupBy(v => v.Item2).ToDictionary(v => v.Key, v => v.ToList());
+                foreach(var negpt in dict[false])
+                    foreach (var pospt in dict[true])
+                        pairs.Add(new Tuple<ICoordinate, ICoordinate>(negpt.Item1, pospt.Item1));
 
                 var problemDim = lableddata.First().Item1.GetDimensionality();
                 var bisectors = pairs.AsParallel().Select(pair => problemDim == 2
                     ? (Hyperplane)Line.Bisector((Coordinate)pair.Item1, (Coordinate)pair.Item2, isCounted: false)
                     : (Hyperplane)Plane.Bisector((Coordinate3D)pair.Item1, (Coordinate3D)pair.Item2)).ToList();
-                //bisectors.ForEach(b => ((Plane)b).ToCsv("plane" + Guid.NewGuid() + ".csv")); //debug save planes
+                
                 //add boundaries at +- 20 (assumes data is whitened)
                 switch (problemDim)
                 {
                     case 2:
-                        bisectors.Add(new Line(jitterscale, -20, false));
+                        bisectors.Add(new Line(0.001, -20, false));
+                        bisectors.Add(new Line(-0.001, -20, false));
                         break;
                     case 3:
-                        bisectors.Add(new Plane(0, 1, 0, 20));
+                        bisectors.Add(new Plane(jitterscale, 1+jitterscale, 1, 20));
+                        bisectors.Add(new Plane(-jitterscale, 1-jitterscale, 1, -20));
                         break;
                 }
-                
+                if (debug != null)
+                    File.WriteAllLines(debug, bisectors.Select(b => b.ToString()));
                 //set inorder=true for enumeration without replacement of possible combinations.
                 if (inorder)
                 {
                     //Lazily generate all (upto ~numsamples) permutations of bisectors pairs (2D) or triplets (3D)
                     var exhaustiveGroups = bisectors.DifferentCombinations(problemDim);
-                    Parallel.ForEach(exhaustiveGroups, new ParallelOptions() { MaxDegreeOfParallelism = 2 }, (inducerLst, loopState) =>
+                    Parallel.ForEach(exhaustiveGroups, new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (inducerLst, loopState) =>
                     {
                         var inducers = inducerLst.ToList();
                         var jitteredPivots = GetPivotForCoordSet(inducers, jitterscale, inorder);
@@ -153,9 +187,13 @@ namespace SpatialEnrichmentWrapper
                 }
                 else
                 {
-                    Parallel.For(0, numsamples, new ParallelOptions() { MaxDegreeOfParallelism = 2 }, (i, loopState) =>
+                    Parallel.For(0, numsamples, new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (i, loopState) =>
                     {
-                        var inducers = bisectors.OrderBy(v => StaticConfigParams.rnd.NextDouble()).Take(problemDim).ToList();
+                        var inducerIds = new HashSet<int>();
+                        while (inducerIds.Count < problemDim)
+                            inducerIds.Add(StaticConfigParams.rnd.Next(0, bisectors.Count));
+                        var inducers = new List<Hyperplane>();
+                        foreach (var id in inducerIds) inducers.Add(bisectors[id]);
                         var jitteredPivots = GetPivotForCoordSet(inducers, jitterscale);
                         foreach (var piv in jitteredPivots)
                             Pivots.Add(piv);
@@ -172,6 +210,7 @@ namespace SpatialEnrichmentWrapper
         {
             var problemDim = inducers.Count;
             ICoordinate intersectionCoord, firstCoord, secondCoord;
+            double firstX, secX;
             ICoordinate jitteredPivot = null;
             switch (problemDim)
             {
@@ -179,21 +218,9 @@ namespace SpatialEnrichmentWrapper
                     var firstbisectorLine = (Line) inducers[0];
                     var secondbisectorLine = (Line) inducers[1];
                     intersectionCoord = firstbisectorLine.Intersection(secondbisectorLine);
-                    //empirical gradient
-                    var first_posdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
-                    var first_negdir = firstbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
-                    var second_posdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) + jitterscale);
-                    var second_negdir = secondbisectorLine.EvaluateAtX(intersectionCoord.GetDimension(0) - jitterscale);
-                    //Find local minima directions.
-                    firstCoord = first_posdir > first_negdir
-                        ? new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, first_posdir)
-                        : new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, first_negdir);
-                    secondCoord = second_posdir > second_negdir
-                        ? new Coordinate(intersectionCoord.GetDimension(0) + jitterscale, second_posdir)
-                        : new Coordinate(intersectionCoord.GetDimension(0) - jitterscale, second_negdir);
-                    //averaging ensures we are in the exact cell who's bottom-most coordinate is the intersection coord.
-                    jitteredPivot = new Coordinate(firstCoord.GetDimension(0) + secondCoord.GetDimension(0) / 2.0,
-                        firstCoord.GetDimension(1) + secondCoord.GetDimension(1) / 2.0);
+                    firstX = firstbisectorLine.EvaluateAtY(intersectionCoord.GetDimension(1) + jitterscale);
+                    secX = secondbisectorLine.EvaluateAtY(intersectionCoord.GetDimension(1) + jitterscale);
+                    jitteredPivot = new Coordinate((firstX + secX) / 2.0, intersectionCoord.GetDimension(1) + jitterscale);
                     yield return jitteredPivot;
                     break;
                 case 3:
@@ -210,8 +237,13 @@ namespace SpatialEnrichmentWrapper
                     double[,] rightSide = {{-firstbisectorPlane.D}, {-secondbisectorPlane.D}, {-thirdbisectorPlane.D}};
                     var x = matrix.Solve(rightSide);
                     intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
-
-                    for(var i=0;i < Math.Pow(2,inorder ? 2 : 0); i++)
+                    firstX = firstbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                    secX = secondbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                    var thirdX = thirdbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                    jitteredPivot = new Coordinate3D((firstX + secX + thirdX) / 3.0, intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                    yield return jitteredPivot;
+                    /*
+                    for (var i=0;i < Math.Pow(2,inorder ? 3 : 0); i++)
                     {
                         var signs = new BitArray(new int[] { i });
                         //empirical gradients dy
@@ -225,6 +257,7 @@ namespace SpatialEnrichmentWrapper
 
                         yield return jitteredPivot;
                     }
+                    */
                     break;
             }
             

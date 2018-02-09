@@ -13,7 +13,7 @@ namespace SpatialEnrichmentWrapper
     public class Coordinate3D : IEquatable<Coordinate3D>, ICoordinate
     {
         public readonly double X, Y, Z;
-        public int? CoordId;
+        public int? CoordId { get; set; }
 
         public Coordinate3D(string str)
         {
@@ -231,6 +231,11 @@ namespace SpatialEnrichmentWrapper
                 fileout.WriteLine(Normal);
                 fileout.WriteLine(MidPoint);
             }
+        }
+
+        internal double EvaluateAtYZ(double y, double z)
+        {
+            return -(Normal.Y * y + Normal.Z * z + D) / Normal.X;
         }
     }
 

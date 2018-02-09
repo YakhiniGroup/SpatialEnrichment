@@ -252,7 +252,7 @@ namespace SpatialEnrichment
                 Thread.SpinWait(1000);
             }
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
-                new List<string>() { $"{samplingType}: {mHGval},{numcomputedAtOpt},{nrm.DeNormalize(mHgPos).ToString(@"0.000")}" });
+                new List<string>() { $"{samplingType}: {mHGval},{numcomputedAtOpt},{numcomputed},{nrm.DeNormalize(mHgPos).ToString(@"0.000")}" });
         }
 
         public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)

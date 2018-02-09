@@ -10,6 +10,7 @@ namespace SpatialEnrichmentWrapper
 {
     public interface ICoordinate
     {
+        int? CoordId { get; set; }
         double EuclideanDistance(ICoordinate pivotCoord);
         double Norm();
         string ToString();

@@ -220,11 +220,11 @@ namespace SpatialEnrichment.Helpers
             random = new Random(seed);
         }
 
-        public int Next()
+        public int Next(int min = 0, int max = int.MaxValue)
         {
             lock (random)
             {
-                return random.Next();
+                return random.Next(min, max);
             }
         }
 

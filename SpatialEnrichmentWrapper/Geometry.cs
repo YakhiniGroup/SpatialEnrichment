@@ -17,7 +17,7 @@ namespace SpatialEnrichment
     public class Coordinate : IEquatable<Coordinate>, ICoordinate
     {
         public readonly double X, Y;
-        public int? CoordId;
+        public int? CoordId { get; set; }
         public Coordinate(double x, double y)
         {
             if (double.IsNaN(x) || double.IsNaN(y) || double.IsInfinity(x) || double.IsInfinity(y))
@@ -226,7 +226,7 @@ namespace SpatialEnrichment
 
         public override string ToString()
         {
-            return String.Format(@"{0}", Id);
+            return String.Format(@"{0},{1}", Slope, Intercept);
         }
         public void Dispose()
         {

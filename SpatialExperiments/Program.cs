@@ -14,10 +14,48 @@ namespace SpatialExperiments
     {
         static void Main(string[] args)
         {
-
+            //Debug2DSamplingVsGrid();
             Figure1();
-
         }
+
+
+        public static void Debug2DSamplingVsGrid()
+        {
+            Directory.CreateDirectory($"Eval");
+            var rnd = new Random(0);
+            int wins = 0;
+            int losses = 0;
+            for(var i=0;i<100;i++)
+            {
+                var N = 100;
+                var pos = (int)Math.Max(1, Math.Round((rnd.NextDouble() / 2.0) * N)); //less then half.
+                var neg = N - pos;
+                mHGJumper.Initialize(pos, neg);
+                var numCells = (long)MathExtensions.NChooose2(mHGJumper.Lines + 1);
+                var evalcount = numCells; //1000
+                var dataset = SpatialEnrichmentWrapper.Helpers.SyntheticDatasets.SinglePlantedEnrichment(2);
+                File.WriteAllLines($"Eval\\dataset.csv", dataset.Select(c => c.Item1.ToString() + "," + c.Item2));
+
+                var samplegrid = new Gridding();
+                string bisectorDebug = null; //$"Eval\\bisectors.csv";
+                string samplingDebug = null; //$"Eval\\sampling.csv"
+                bool isOrdered = false; //true
+                samplegrid.GenerateEmpricialDensityGrid(evalcount, dataset, inorder: isOrdered, debug: bisectorDebug);
+                var sampleres = samplegrid.EvaluateDataset(dataset, debug: samplingDebug);
+
+                var pivotgrid = new Gridding();
+                string gridDebug = null; //$"Eval\\grid.csv"
+                pivotgrid.GeneratePivotGrid(evalcount);
+                var pivotres = pivotgrid.EvaluateDataset(dataset, debug: gridDebug);
+                File.WriteAllText(@"Eval\\best.csv", sampleres.Item1.ToString() + "\n" + pivotres.Item1.ToString());
+                Console.WriteLine($"#{i}:{wins}/{losses} : {sampleres.Item2}, {pivotres.Item2}");
+                if (sampleres.Item2 < pivotres.Item2)
+                    wins++;
+                if (sampleres.Item2 > pivotres.Item2)
+                    losses++;
+            }
+        }
+
 
         /// <summary>
         /// figure with x axis = problem size, y axis = opt enrichment p-value. 
@@ -27,7 +65,7 @@ namespace SpatialExperiments
         /// </summary>
         public static void Figure1()
         {
-            var rnd = new Random();
+            var rnd = new Random(0);
             //arrayfun(@(x) nchoosek(x,3) , ([10, 20, 30, 50, 70]/2).^2) %<-- worst case sizes
             // 2300      161700     1873200    40495000   305627700 1.38e09
             var sizes = new int[] { 10, 20, 30, 50, 70, 90 };
@@ -55,15 +93,14 @@ namespace SpatialExperiments
                         //var res = (SpatialmHGResult3D)se.SpatialmHGWrapper3D(dataset.Select(v => new Tuple<double, double, double, bool>(v.Item1.GetDimension(0), v.Item1.GetDimension(1), v.Item1.GetDimension(2), v.Item2)).ToList()).First();
                         //var optres = new Tuple<ICoordinate, double, long>(new Coordinate3D(res.X, res.Y, res.Z), res.pvalue, res.mHGthreshold);
                         var optgrid = new Gridding();
-                        optgrid.GenerateEmpricialDensityGrid((long)(100*numCells), dataset, inorder:true);
-                        var optres = optgrid.EvaluateDataset(dataset, debug:"opt.csv");
-                        
+                        optgrid.GenerateEmpricialDensityGrid((long)(100*numCells), dataset, inorder:true, debug: $"Experiments\\{N}\\Planes.csv");
+                        var optres = optgrid.EvaluateDataset(dataset);
                         File.WriteAllText($"Experiments\\{N}\\data_{i}_optres.csv", $"{optres.Item1},{optres.Item2},{optres.Item3}");
 
                         var beadgrid = new Gridding();
                         beadgrid.GenerateBeadPivots(dataset);
-                        var beadres = beadgrid.EvaluateDataset(dataset, debug: "bead.csv");
-
+                        var beadres = beadgrid.EvaluateDataset(dataset);
+                        File.WriteAllText($"Experiments\\{N}\\data_{i}_beadres.csv", $"{beadres.Item1},{beadres.Item2},{beadres.Item3}");
                         graphfile.Write($"{N},{i},{numCells},{optres.Item2},{optres.Item3},{beadres.Item2},{beadres.Item3}");
 
                         foreach (var resolution in griddepth)
