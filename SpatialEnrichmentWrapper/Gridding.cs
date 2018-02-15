@@ -21,10 +21,48 @@ namespace SpatialEnrichmentWrapper
         private IEnumerator<ICoordinate> elementEnumerator;
         public ICoordinate NextPivot => elementEnumerator.MoveNext() ? elementEnumerator.Current : null;
         public long NumPivots = 0;
+        public long EvaluatedPivots = 0;
+        private ICoordinate CurrOptLoci;
+        private double CurrOptPval;
+
+        public System.Timers.Timer timer = new System.Timers.Timer();
+        private StreamWriter _timerlog;
+        private DateTime _startTime;
+        private BlockingCollection<string> _logQueue;
+        private Task _logTask;
+        private Normalizer nrm;
         public Gridding()
         {
             Pivots = new BlockingCollection<ICoordinate>(5000);
             elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
+        }
+
+        public void StartTimeDebug(string filename, Normalizer cnrm, double interval = 10000)
+        {
+            nrm = cnrm;
+            timer.Interval = interval;
+            _timerlog = new StreamWriter(filename);
+            timer.Elapsed += Timer_Elapsed;
+            _startTime = DateTime.Now;
+            _logQueue = new BlockingCollection<string>();
+            timer.Enabled = true;
+            _logTask = Task.Run(() => {
+                foreach(var line in _logQueue.GetConsumingEnumerable())
+                    _timerlog.WriteLine(line);
+            });
+        }
+
+        public void StopTimeDebug()
+        {
+            timer.Enabled = false;
+            _logQueue.CompleteAdding();
+            _logTask.Wait();
+            _timerlog.Close();
+        }
+
+        private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            _logQueue.Add($"{(e.SignalTime - _startTime).TotalSeconds},{EvaluatedPivots},{CurrOptPval},{nrm.DeNormalize(CurrOptLoci)}");
         }
 
         public void ReturnPivots(IEnumerable<ICoordinate> data)
@@ -42,8 +80,8 @@ namespace SpatialEnrichmentWrapper
             producer = Task.Run(() =>
             {
                 var resolution = Math.Pow(numsamples, 1.0/dim);
-                for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
-                for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
+                for (var i = -buffer; i < 1 + buffer; i += (1.0 + 2 * buffer) / resolution)
+                for (var j = -buffer; j < 1 + buffer; j += (1.0 + 2 * buffer) / resolution)
                         switch (dim)
                         {
                             case 2:
@@ -51,7 +89,7 @@ namespace SpatialEnrichmentWrapper
                                 Interlocked.Increment(ref NumPivots);
                                 break;
                             case 3:
-                                for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
+                                for (var k = -buffer; k < 1 + buffer; k += (1.0 + 2 * buffer) / resolution)
                                 {
                                     Pivots.Add(new Coordinate3D(i, j, k));
                                     Interlocked.Increment(ref NumPivots);
@@ -67,29 +105,49 @@ namespace SpatialEnrichmentWrapper
         {
             //Sample 4 points in corners. 
             //Split to 4 quadrents and repeat. 
-            //Stop if quadrent yields the same data arrangement.
-            
+            //Bonus: Stop if quadrent yields the same data arrangement.
+            //Stack contains corner pairs that define the quadrent ranges.
+            var stack = new Stack<Tuple<ICoordinate, ICoordinate>>();
             //Need to exhaust cells in same depth in recursion before proceeding
             //for depth i, need to compare sorting for all pivots under same parent
 
             //todo implement some sort of diagonaization to enumerate with increasing resolution indefinetly
             producer = Task.Run(() =>
             {
-                var resolution = Math.Pow(numsamples, 1.0 / dim);
-                for (var i = -buffer; i < 1 + buffer; i += 1.0 / resolution)
-                    for (var j = -buffer; j < 1 + buffer; j += 1.0 / resolution)
-                        switch (dim)
-                        {
-                            case 2:
-                                Pivots.Add(new Coordinate(i, j));
-                                break;
-                            case 3:
-                                for (var k = -buffer; k < 1 + buffer; k += 1.0 / resolution)
-                                    Pivots.Add(new Coordinate3D(i, j, k));
-                                break;
-                        }
+                //Introduce bounding box
+                switch (dim)
+                {
+                    case 2:
+                        stack.Push(Tuple.Create((ICoordinate)new Coordinate(-buffer, -buffer), (ICoordinate)new Coordinate(1 + buffer, 1 + buffer)));
+                        break;
+                    case 3:
+                        stack.Push(Tuple.Create((ICoordinate)new Coordinate3D(-buffer, -buffer, -buffer), (ICoordinate)new Coordinate3D(1 + buffer, 1 + buffer, 1 + buffer)));
+                        break;
+                }
+                while (NumPivots < numsamples)
+                {
+                    var quadrent = stack.Pop();
+                    Pivots.Add(quadrent.Item1);
+                    Pivots.Add(quadrent.Item2);
+                    /*
+                    switch (dim)
+                    {
+                        case 2:
+                            var midpoint = (ICoordinate)new Coordinate(0.5 * (quadrent.Item1.GetDimension(0) + quadrent.Item2.GetDimension(0)), 0.5 * (quadrent.Item1.GetDimension(1) + quadrent.Item2.GetDimension(1)));
+                            var midpointtop = (ICoordinate)new Coordinate(quadrent.Item1.GetDimension(0), 0.5 * (quadrent.Item1.GetDimension(1) + quadrent.Item2.GetDimension(1)));
+                            var midpointbot = (ICoordinate)new Coordinate(0.5 * (quadrent.Item1.GetDimension(0) + quadrent.Item2.GetDimension(0)), quadrent.Item2.GetDimension(1));
+                            stack.Push(Tuple.Create(quadrent.Item1, midpoint));
+                            stack.Push(Tuple.Create(quadrent.Item1, quadrent.Item2));
 
-                Pivots.CompleteAdding();
+                            break;
+                        case 3:
+
+                            break;
+                    }
+
+                    stack.Push();
+                    */
+                }
             });
         }
 
@@ -97,9 +155,10 @@ namespace SpatialEnrichmentWrapper
         public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null)
         {
             var tsks = new List<Task>();
-            ICoordinate best = null;
-            var pval = 1.0;
-            long iterfound = -1, curriter = 0;
+            CurrOptLoci = null;
+            CurrOptPval = 1.0;
+            long iterfound = -1;
+            EvaluatedPivots = 0;
             object locker = new object();
             mHGJumper.optHGT = 1;
             StreamWriter outfile = null;
@@ -111,14 +170,14 @@ namespace SpatialEnrichmentWrapper
                     {
                         var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2);
                         var res = mHGJumper.minimumHypergeometric(binvec);
-                        Interlocked.Increment(ref curriter);
+                        Interlocked.Increment(ref EvaluatedPivots);
                         lock (locker)
                         {
-                            if (res.Item1 < pval)
+                            if (res.Item1 < CurrOptPval)
                             {
-                                best = pivot;
-                                pval = res.Item1;
-                                iterfound = curriter;
+                                CurrOptLoci = pivot;
+                                CurrOptPval = res.Item1;
+                                iterfound = EvaluatedPivots;
                             }
                         }
                         if (debug != null)
@@ -128,7 +187,7 @@ namespace SpatialEnrichmentWrapper
             
             Task.WaitAll(tsks.ToArray());
             if (debug != null) outfile.Close();
-            return new Tuple<ICoordinate, double, long>(best, pval, iterfound);
+            return new Tuple<ICoordinate, double, long>(CurrOptLoci, CurrOptPval, iterfound);
         }
 
         public void GenerateBeadPivots(List<Tuple<ICoordinate, bool>> dataset)
@@ -165,7 +224,9 @@ namespace SpatialEnrichmentWrapper
                         break;
                     case 3:
                         bisectors.Add(new Plane(jitterscale, 1+jitterscale, 1, 20));
-                        bisectors.Add(new Plane(-jitterscale, 1-jitterscale, 1, -20));
+                        bisectors.Add(new Plane(-jitterscale, 1-jitterscale, 1, 20));
+                        bisectors.Add(new Plane(-jitterscale, 1 + jitterscale, 1, -20));
+                        bisectors.Add(new Plane(jitterscale, 1 - jitterscale, 1, -20));
                         break;
                 }
                 if (debug != null)

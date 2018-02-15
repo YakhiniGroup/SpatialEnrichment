@@ -199,7 +199,8 @@ namespace SpatialEnrichment
             switch (samplingType)
             {
                 case SamplingType.Emprical:
-                    gridGen.GenerateEmpricialDensityGrid(long.MaxValue, normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList());
+                    gridGen.GenerateEmpricialDensityGrid(long.MaxValue, 
+                        normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList());
                     break;
                 case SamplingType.Grid:
                     gridGen.GeneratePivotGrid(1000000, 3);

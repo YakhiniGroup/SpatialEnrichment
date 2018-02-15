@@ -2,6 +2,7 @@
 using SpatialEnrichmentWrapper;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,9 +16,44 @@ namespace SpatialExperiments
         static void Main(string[] args)
         {
             //Debug2DSamplingVsGrid();
-            Figure1();
+            CompareTimeVsQualityOnRealData(args[0], args.Length>1 ? int.Parse(args[1]): 500000);
+            //Figure1();
+
         }
 
+
+        public static void CompareTimeVsQualityOnRealData(string file, int pivots)
+        {
+            var filename = Path.GetFileNameWithoutExtension(file);
+            //var file = @"C:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\bSubtilis\Prepped\fatty_acid_biosynthetic_process.csv";
+            var data = File.ReadAllLines(file).Select(l => l.Split(',')).Select(sl =>
+                    new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
+
+            var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
+            var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
+            var normalizedDataset = normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList();
+            mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
+            mHGJumper.optHGT = 1;
+
+            Console.WriteLine($"{DateTime.Now}: Sarting Sampling.");
+            var sampling = new Gridding();
+            sampling.StartTimeDebug($"TimeQuality_sampling_{filename}.csv", nrm, 500);
+            sampling.GenerateEmpricialDensityGrid(pivots, normalizedDataset);
+            sampling.EvaluateDataset(normalizedDataset);
+            sampling.StopTimeDebug();
+            Console.WriteLine($"{DateTime.Now}: Done with Sampling. Starting Grid.");
+            var gridding = new Gridding();
+            gridding.StartTimeDebug($"TimeQuality_grid_{filename}.csv", nrm, 500);
+            gridding.GeneratePivotGrid(pivots, 3);
+            gridding.EvaluateDataset(normalizedDataset);
+            gridding.StopTimeDebug();
+            Console.WriteLine($"{DateTime.Now}: Done with Gridding.");
+        }
+
+        private static void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
 
         public static void Debug2DSamplingVsGrid()
         {
