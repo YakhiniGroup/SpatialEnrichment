@@ -16,7 +16,14 @@ namespace SpatialExperiments
         static void Main(string[] args)
         {
             //Debug2DSamplingVsGrid();
-            CompareTimeVsQualityOnRealData(args[0], args.Length>1 ? int.Parse(args[1]): 500000);
+            try
+            {
+                CompareTimeVsQualityOnRealData(args[0], args.Length > 1 ? int.Parse(args[1]) : 500000);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(@"Failed processing file: {0}", args[0]);
+            }
             //Figure1();
 
         }

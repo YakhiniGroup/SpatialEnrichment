@@ -152,8 +152,11 @@ namespace SpatialEnrichmentWrapper
         }
 
 
-        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null)
+        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var left = Console.CursorLeft;
+            var top = Console.CursorTop;
             var tsks = new List<Task>();
             CurrOptLoci = null;
             CurrOptPval = 1.0;
@@ -182,6 +185,14 @@ namespace SpatialEnrichmentWrapper
                         }
                         if (debug != null)
                             outfile.WriteLine(pivot);
+                        if (maxDuration.HasValue && sw.Elapsed > maxDuration.Value)
+                            return;
+                        if (consoleDbg && EvaluatedPivots % 10000 == 0)
+                        {
+                            Console.Write($"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\rPivot #(computed/observed): {EvaluatedPivots:N0}/" +
+                           $"{NumPivots:N0}. Curr mHG={CurrOptPval}. Bonferroni={CurrOptPval * EvaluatedPivots}. Position:{CurrOptLoci.ToString(@"0.00")}");
+                            Console.SetCursorPosition(left, top);
+                        }
                     }
                 }));
             
