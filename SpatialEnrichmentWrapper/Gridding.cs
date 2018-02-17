@@ -297,11 +297,19 @@ namespace SpatialEnrichmentWrapper
                     };
                     double[,] rightSide = {{-firstbisectorPlane.D}, {-secondbisectorPlane.D}, {-thirdbisectorPlane.D}};
                     var x = matrix.Solve(rightSide);
-                    intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
-                    firstX = firstbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
-                    secX = secondbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
-                    var thirdX = thirdbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
-                    jitteredPivot = new Coordinate3D((firstX + secX + thirdX) / 3.0, intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                    try
+                    {
+                        intersectionCoord = new Coordinate3D(x[0, 0], x[1, 0], x[2, 0]);
+                        firstX = firstbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                        secX = secondbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                        var thirdX = thirdbisectorPlane.EvaluateAtYZ(intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                        jitteredPivot = new Coordinate3D((firstX + secX + thirdX) / 3.0, intersectionCoord.GetDimension(1) + jitterscale, intersectionCoord.GetDimension(2));
+                        
+                    }
+                    catch
+                    {
+
+                    }
                     yield return jitteredPivot;
                     /*
                     for (var i=0;i < Math.Pow(2,inorder ? 3 : 0); i++)

@@ -50,11 +50,6 @@ namespace SpatialExperiments
             Console.WriteLine($"{DateTime.Now}: Done with Gridding.");
         }
 
-        private static void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
         public static void Debug2DSamplingVsGrid()
         {
             Directory.CreateDirectory($"Eval");
@@ -105,8 +100,8 @@ namespace SpatialExperiments
             //arrayfun(@(x) nchoosek(x,3) , ([10, 20, 30, 50, 70]/2).^2) %<-- worst case sizes
             // 2300      161700     1873200    40495000   305627700 1.38e09
             var sizes = new int[] { 10, 20, 30, 50, 70, 90 };
-            var samples = new int[] { 2000, 1000, 500, 100, 10, 10 }; //num experiments per size
-            var griddepth = new int[] {1000, 10000, 100000};
+            var samples = new int[] { 500, 400, 400, 100, 10, 10 }; //num experiments per size
+            var griddepth = new int[] { 100, 1000, 10000, 20000, 50000, 100000 };
             Directory.CreateDirectory("Experiments");
 
             var sizeid = -1;
@@ -142,7 +137,7 @@ namespace SpatialExperiments
                         foreach (var resolution in griddepth)
                         {
                             var empiricalgrid = new Gridding();
-                            empiricalgrid.GenerateEmpricialDensityGrid(resolution, dataset);
+                            empiricalgrid.GenerateEmpricialDensityGrid(resolution, dataset, inorder:false);
                             var empiricalres = empiricalgrid.EvaluateDataset(dataset);
                             File.WriteAllText($"Experiments\\{N}\\data_{i}_optempirical_{resolution}.csv", $"{empiricalres.Item1},{empiricalres.Item2},{empiricalres.Item3}");
                             graphfile.Write($",{empiricalres.Item2},{empiricalres.Item3}");
