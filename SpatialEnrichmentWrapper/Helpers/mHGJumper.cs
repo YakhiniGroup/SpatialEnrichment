@@ -87,10 +87,12 @@ namespace SpatialEnrichment.Helpers
             TotalPaths = pathCounting(-0.1, out var pMat); //Todo: should be N choose B
             var tscoremap = new ConcurrentDictionary<double,double>();
             Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);
+            int numMapped = 0;
             Parallel.ForEach(scoreToPval, score =>
             {
                 var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
                 tscoremap.AddOrUpdate(score, pval, (a, b) => pval);
+                Console.Write("\r\r\r\r\r"+Interlocked.Increment(ref numMapped));
             });
             ScoreMap = tscoremap.ToDictionary(t => t.Key, t => t.Value);
             Console.WriteLine("Done initializing HGT matrix of size {0}x{1}",zeros,ones);
