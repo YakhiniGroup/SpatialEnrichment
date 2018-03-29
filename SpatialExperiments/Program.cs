@@ -1,4 +1,5 @@
-﻿using SpatialEnrichment.Helpers;
+﻿using SpatialEnrichment;
+using SpatialEnrichment.Helpers;
 using SpatialEnrichmentWrapper;
 using System;
 using System.Collections.Generic;
@@ -28,6 +29,26 @@ namespace SpatialExperiments
 
         }
 
+
+        public static void GradientDescent(string file)
+        {
+            var filename = Path.GetFileNameWithoutExtension(file);
+            //var file = @"C:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\bSubtilis\Prepped\fatty_acid_biosynthetic_process.csv";
+            var data = File.ReadAllLines(file).Select(l => l.Split(',')).Select(sl =>
+                    new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
+
+            var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
+            var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
+            var normalizedDataset = normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList();
+            mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
+            mHGJumper.optHGT = 1;
+
+            var sampledPivot = Coordinate3D.MakeRandom();
+            /*
+            var VT = new VolatileTesselation(normalizedDataset);
+            var cell = VT.PointToCell(sampledPivot);
+            */
+        }
 
         public static void CompareTimeVsQualityOnRealData(string file, int pivots)
         {

@@ -10,6 +10,22 @@ namespace SpatialEnrichment.Helpers
 {
     public static class Generics
     {
+        public static List<double> FDRCorrection(this List<double> pvals)
+        {
+            ;
+            var N = (double) pvals.Count();
+            var observedValId = new Dictionary<double, int>();
+            var res = pvals.Select((v, idx) => new { Value = v, Index = idx }).OrderByDescending(v => v.Value).Select((v, rnk) =>
+            {
+                if (!observedValId.ContainsKey(v.Value))
+                    observedValId.Add(v.Value, rnk);
+                var trueIdx = observedValId[v.Value];
+                return new { Qval = v.Value * N / (N - trueIdx), Pval=v.Value, v.Index, Rank = rnk };
+            }).ToList();
+            return res.OrderBy(v => v.Index).Select(v=>v.Qval).ToList();
+        }
+
+
         public static void SaveToCSV(IEnumerable<double[]> coords, string outfile, bool wait = false)
         {
             SaveToCSV(coords.Select(t => string.Join(",", t.Select(c => c.ToString("R")))), outfile, wait);
@@ -178,6 +194,7 @@ namespace SpatialEnrichment.Helpers
 
         public ICoordinate DeNormalize(ICoordinate c)
         {
+            if (c!=null)
             switch (dim)
             {
                 case 2:

@@ -158,8 +158,7 @@ namespace SpatialEnrichment
         public int PointAId = -1, PointBId = -1;
         public readonly int Id;
         public static int Count;
-        //public static Dictionary<Tuple<int, int>, int> LineIdsMap = new Dictionary<Tuple<int, int>, int>();
-        private static int[][] LineIdsMap;
+        public static int[][] LineIdsMap;
 
         public double Slope, Intercept;
         public Line(double slope, double intercept, bool isCounted=true)
@@ -247,8 +246,9 @@ namespace SpatialEnrichment
             //LineIdsMap.Clear();
         }
 
-        public double DistanceToPoint(Coordinate coord)
+        public double DistanceToPoint(ICoordinate c)
         {
+            var coord = (Coordinate)c;
             //assuming line y=mx+k : normal to line crossing through P is y=(x_0-x)/m+y_0
             if (Slope == 0)
                 return Math.Abs(coord.Y - this.Intercept);
@@ -291,6 +291,10 @@ namespace SpatialEnrichment
                 LineIdsMap[i] = new int[pointsCount];
         }
 
+        public ICoordinate ProjectOnto(ICoordinate point)
+        {
+            return Perpendicular((Coordinate)point).Intersection(this);
+        }
     }
 
 

@@ -175,11 +175,15 @@ namespace SpatialEnrichmentWrapper
         public readonly int Id;
         public Coordinate3D Normal, MidPoint;
         public double D; //plane given as aX+bY+cZ=d where a,b,c is the Normal
+        public static int Count;
+        public static int[][] PlaneIdsMap;
 
-        public Plane(double a, double b, double c, double d)
+        public Plane(double a, double b, double c, double d, bool isCounted = true)
         {
             Normal = new Coordinate3D(a,b,c);
             D = d;
+            if(isCounted)
+                Id = Count++;
         }
 
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
@@ -237,6 +241,35 @@ namespace SpatialEnrichmentWrapper
         {
             return -(Normal.Y * y + Normal.Z * z + D) / Normal.X;
         }
+
+        public void SetPointIds(int i, int j)
+        {
+            PointAId = i < j ? i : j;
+            PointBId = i < j ? j : i;
+            PlaneIdsMap[PointAId][PointBId] = this.Id;
+        }
+
+        public static void InitNumPoints(int pointsCount)
+        {
+            PlaneIdsMap = new int[pointsCount][];
+            for (var i = 0; i < pointsCount; i++)
+                PlaneIdsMap[i] = new int[pointsCount];
+        }
+
+        public double DistanceToPoint(ICoordinate point)
+        {
+            var p = (Coordinate3D)point;
+            var numerator = Math.Abs(Normal.X * p.X + Normal.Y * p.Y + Normal.Z * p.Z + D);
+            var denominator = Math.Sqrt(Normal.X * Normal.X + Normal.Y * Normal.Y + Normal.Z * Normal.Z);
+            return numerator / denominator;
+        }
+
+        public ICoordinate ProjectOnto(ICoordinate point)
+        {
+            var p = (Coordinate3D)point;
+            var d = DistanceToPoint(point);
+            return p + GetUnitNormalVector().Scale(-d);
+        }
     }
 
     public static class Planehelpers {
@@ -259,7 +292,9 @@ namespace SpatialEnrichmentWrapper
 
     public interface Hyperplane
     {
-
+        double DistanceToPoint(ICoordinate point);
+        void SetPointIds(int i, int j);
+        ICoordinate ProjectOnto(ICoordinate point);
     }
 
 }
