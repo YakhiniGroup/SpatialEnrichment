@@ -31,8 +31,9 @@ namespace SpatialEnrichmentWrapper
         private BlockingCollection<string> _logQueue;
         private Task _logTask;
         private Normalizer nrm;
-        public Gridding()
+        public Gridding(Normalizer norm = null)
         {
+            nrm = norm;
             Pivots = new BlockingCollection<ICoordinate>(5000);
             elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
         }
@@ -67,11 +68,14 @@ namespace SpatialEnrichmentWrapper
 
         public void ReturnPivots(IEnumerable<ICoordinate> data)
         {
-            foreach (var coordinate in data)
+            producer = Task.Run(() =>
             {
-                Pivots.Add(coordinate);
-            }
-            Pivots.CompleteAdding();
+                foreach (var coordinate in data)
+                {
+                    Pivots.Add(coordinate);
+                }
+                Pivots.CompleteAdding();
+            });
         }
 
         public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
@@ -159,7 +163,7 @@ namespace SpatialEnrichmentWrapper
             var top = Console.CursorTop;
             var tsks = new List<Task>();
             CurrOptLoci = null;
-            CurrOptPval = 1.0;
+            CurrOptPval = 1.1;
             long iterfound = -1;
             EvaluatedPivots = 0;
             object locker = new object();
@@ -171,14 +175,15 @@ namespace SpatialEnrichmentWrapper
                 tsks.Add(Task.Run(() => {
                     foreach (var pivot in GetPivots())
                     {
-                        var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2);
-                        var res = mHGJumper.minimumHypergeometric(binvec);
+                        Tuple<double, int, int[]> res = null;
+                        var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2).ToList();
+                        res = mHGJumper.minimumHypergeometric(binvec);
                         Interlocked.Increment(ref EvaluatedPivots);
                         lock (locker)
                         {
                             if (res.Item1 < CurrOptPval)
                             {
-                                CurrOptLoci = pivot;
+                                CurrOptLoci = nrm?.DeNormalize(pivot);
                                 CurrOptPval = res.Item1;
                                 iterfound = EvaluatedPivots;
                             }
@@ -346,7 +351,8 @@ namespace SpatialEnrichmentWrapper
         public IEnumerable<ICoordinate> GetPivots()
         {
             foreach (var el in Pivots.GetConsumingEnumerable())
-                yield return el;
+                if (el != null)
+                    yield return el;
         }
 
         public static Tuple<double, int> EvaluatePivot(Coordinate3D p, List<Coordinate3D> coords, List<bool> labels)

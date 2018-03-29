@@ -195,7 +195,7 @@ namespace SpatialEnrichment
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
-            var gridGen = new Gridding();
+            var gridGen = new Gridding(nrm);
             switch (samplingType)
             {
                 case SamplingType.Sampling:
@@ -213,7 +213,7 @@ namespace SpatialEnrichment
             var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:true);
             
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
-                new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{nrm.DeNormalize(res.Item1).ToString(@"0.000")}" });
+                new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{res.Item1.ToString(@"0.000")}" });
             Console.WriteLine();
         }
 
