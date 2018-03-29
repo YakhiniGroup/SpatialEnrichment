@@ -210,10 +210,12 @@ namespace SpatialEnrichment
                     break;
             }
             
-            var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:true);
+            var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:true, trackAll:true);
             
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
                 new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{nrm.DeNormalize(res.Item1).ToString(@"0.000")}" });
+
+            File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), gridGen.GetQvalues().Select(Convert.ToString));
             Console.WriteLine();
         }
 

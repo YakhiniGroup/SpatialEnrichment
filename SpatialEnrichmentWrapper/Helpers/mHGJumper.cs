@@ -34,7 +34,7 @@ namespace SpatialEnrichment.Helpers
         private static double TotalPaths;
         public static int Ones, Zeros;
         public static int Lines => Ones * Zeros;
-        private static Dictionary<double, double> ScoreMap;
+        private static ConcurrentDictionary<double, double> ScoreMap = new ConcurrentDictionary<double, double>();
         
         public static void Initialize(int ones, int zeros)
         {
@@ -85,17 +85,20 @@ namespace SpatialEnrichment.Helpers
                 }
             }
             TotalPaths = pathCounting(-0.1, out var pMat); //Todo: should be N choose B
-            var tscoremap = new ConcurrentDictionary<double,double>();
-            Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);
-            int numMapped = 0;
-            Parallel.ForEach(scoreToPval, score =>
+            if (scoreToPval.Count < 100000)
             {
-                var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
-                tscoremap.AddOrUpdate(score, pval, (a, b) => pval);
-                Console.Write("\r\r\r\r\r"+Interlocked.Increment(ref numMapped));
-            });
-            ScoreMap = tscoremap.ToDictionary(t => t.Key, t => t.Value);
-            Console.WriteLine("Done initializing HGT matrix of size {0}x{1}",zeros,ones);
+                Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);
+                int numMapped = 0;
+                Parallel.ForEach(scoreToPval, score =>
+                {
+                    var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
+                    ScoreMap.AddOrUpdate(score, pval, (a, b) => pval);
+                    Console.Write("\r\r\r\r\r" + Interlocked.Increment(ref numMapped));
+                });
+            }
+            else
+                Console.WriteLine("mHG Caching skipped, too many values.");
+            Console.WriteLine("Done initializing HGT matrix of size {0}x{1}", zeros, ones);
         }
 
         /// <summary>
@@ -243,7 +246,8 @@ namespace SpatialEnrichment.Helpers
             switch (correctMultiHypothesis)
             {
                 case mHGCorrectionType.Exact:
-                    pval = ScoreMap[mHGT];
+                    pval = ScoreMap.GetOrAdd(mHGT, 
+                        1.0 - (pathCounting(mHGT, out var pMat1) / TotalPaths));
                     break;
                 case mHGCorrectionType.None:
                     pval = mHGT;

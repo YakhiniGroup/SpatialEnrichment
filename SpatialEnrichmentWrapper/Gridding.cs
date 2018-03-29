@@ -29,6 +29,7 @@ namespace SpatialEnrichmentWrapper
         private StreamWriter _timerlog;
         private DateTime _startTime;
         private BlockingCollection<string> _logQueue;
+        private ConcurrentBag<Tuple<double, int, ICoordinate>> pValueHistory;
         private Task _logTask;
         private Normalizer nrm;
         public Gridding()
@@ -72,6 +73,13 @@ namespace SpatialEnrichmentWrapper
                 Pivots.Add(coordinate);
             }
             Pivots.CompleteAdding();
+        }
+
+        public List<Tuple<double,int,ICoordinate>> GetQvalues(double qthreshold = 0.05)
+        {
+            var qvals = pValueHistory.Select(v=>v.Item1).ToList().FDRCorrection();
+            var res = qvals.Zip(pValueHistory, (a, b) => Tuple.Create(a, b.Item2, b.Item3)).Where(v => v.Item1 < qthreshold).OrderBy(v => v.Item1).ToList();
+            return res;
         }
 
         public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
@@ -152,7 +160,7 @@ namespace SpatialEnrichmentWrapper
         }
 
 
-        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false)
+        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false, bool trackAll=false)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var left = Console.CursorLeft;
@@ -165,6 +173,7 @@ namespace SpatialEnrichmentWrapper
             object locker = new object();
             mHGJumper.optHGT = 1;
             StreamWriter outfile = null;
+            if (trackAll) pValueHistory = new ConcurrentBag<Tuple<double,int,ICoordinate>>();
             if (debug != null)
                 outfile = new StreamWriter(debug);
             for (var i = 0; i < parallelization; i++)
@@ -173,6 +182,7 @@ namespace SpatialEnrichmentWrapper
                     {
                         var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2);
                         var res = mHGJumper.minimumHypergeometric(binvec);
+                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, pivot));
                         Interlocked.Increment(ref EvaluatedPivots);
                         lock (locker)
                         {

@@ -34,7 +34,7 @@ namespace SpatialEnrichmentWrapper
     public enum SamplingType
     {
         Pivot,
-        Emprical,
+        Sampling,
         Grid
     }
 
