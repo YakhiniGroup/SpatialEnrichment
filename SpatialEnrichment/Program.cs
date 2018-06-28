@@ -19,16 +19,18 @@ namespace SpatialEnrichment
         public static ConfigParams Config;
         static void Main(string[] args)
         {
+            /*
             ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Pivot);
             ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Grid);
             ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Sampling);
             return;
+            */
             var options = new CommandlineParameters();
             var isValid = Parser.Default.ParseArgumentsStrict(args, options);
             
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 300;
+            var numcoords = 10;
             Config = new ConfigParams("");
 
             if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
@@ -174,7 +176,8 @@ namespace SpatialEnrichment
                     for (var resid = 0; resid < results.Count; resid++)
                         AzureBatchExecution.UploadFileToContainer($@"Cells\{infile}_Cell_{resid}_{StaticConfigParams.filenamesuffix}.csv", options.SaasUrl);
                 }
-                File.WriteAllLines(Path.ChangeExtension(infile, "out"), results.Select(r=>r.ToString()));
+                if (!string.IsNullOrEmpty(infile))
+                    File.WriteAllLines(Path.ChangeExtension(infile, "out"), results.Select(r=>r.ToString()));
             }
 
             //Finalize
@@ -196,7 +199,7 @@ namespace SpatialEnrichment
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
             var gridGen = new Gridding(nrm);
-            switch (samplingType)
+            switch (samplingType) 
             {
                 case SamplingType.Sampling:
                     gridGen.GenerateEmpricialDensityGrid(long.MaxValue, 

@@ -12,7 +12,7 @@ namespace SpatialEnrichment.Helpers
     {
         public static List<double> FDRCorrection(this List<double> pvals)
         {
-            ;
+            //todo: verify correctness with zohar
             var N = (double) pvals.Count();
             var observedValId = new Dictionary<double, int>();
             var res = pvals.Select((v, idx) => new { Value = v, Index = idx }).OrderByDescending(v => v.Value).Select((v, rnk) =>

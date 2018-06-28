@@ -40,7 +40,7 @@ namespace SpatialEnrichmentWrapper
 
     public static class StaticConfigParams
     {
-        public static bool WriteToCSV = false; //writes cell to files
+        public static bool WriteToCSV = true; //writes cell to files
         public const double TOLERANCE = 1E-8;
         public const double CONST_PROBLEM_SCALE = 100;
         public const double CONST_NEGATIVELABELRATE = 0.7;
@@ -68,14 +68,14 @@ namespace SpatialEnrichmentWrapper
             //Actions.Program_RandomConstSeed |
             Actions.Instance_PlantedSingleEnrichment |
             //Actions.Instance_Uniform |
-            Actions.Filter_DegenerateLines | // Warning, this might not work.
+            //Actions.Filter_DegenerateLines | // Warning, this might not work.
                                              //Actions.Search_Originals;
                                              //Actions.Search_Exhaustive;
                                              //Actions.Search_LineSweep;
                                              //Actions.Search_FixedSet;
-                                             //Actions.Search_CellSkipping | Actions.Search_GradientDescent;
+                                             Actions.Search_CellSkipping | Actions.Search_GradientDescent;
             //Actions.Search_UniformSampling;
-            Actions.Search_EmpricalSampling;
+            //Actions.Search_EmpricalSampling;
         //non-parameters
         public double Cellcount;
         public ConcurrentBag<Tuple<double, int>> mHGlist = new ConcurrentBag<Tuple<double, int>>();
