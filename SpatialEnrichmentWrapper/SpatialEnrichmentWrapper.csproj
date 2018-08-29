@@ -66,6 +66,7 @@
     <Reference Include="CommandLine, Version=1.9.71.2, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
       <HintPath>..\packages\CommandLineParser.1.9.71\lib\net45\CommandLine.dll</HintPath>
     </Reference>
+    <Reference Include="Hybridizer.Runtime.CUDAImports, Version=1.1.9554.0, Culture=neutral, PublicKeyToken=2e60b65856451e38, processorArchitecture=AMD64" />
     <Reference Include="Microsoft.Azure.Batch, Version=8.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Azure.Batch.8.0.0\lib\net452\Microsoft.Azure.Batch.dll</HintPath>
     </Reference>
@@ -117,6 +118,7 @@
     <Compile Include="Helpers\ConcurrentIndexing.cs" />
     <Compile Include="Helpers\ConcurrentPriorityQueue.cs" />
     <Compile Include="Helpers\CoordNeighborArray.cs" />
+    <Compile Include="Helpers\CUDAmHG.cs" />
     <Compile Include="Helpers\Generics.cs" />
     <Compile Include="Helpers\mHGJumper.cs" />
     <Compile Include="Helpers\ParseDatasets.cs" />

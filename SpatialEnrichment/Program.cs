@@ -19,18 +19,21 @@ namespace SpatialEnrichment
         public static ConfigParams Config;
         static void Main(string[] args)
         {
-            /*
-            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Pivot);
-            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Grid);
-            ComputeSamplingGrid(args[0], TimeSpan.FromMinutes(double.Parse(args[1])), SamplingType.Sampling);
-            return;
-            */
             var options = new CommandlineParameters();
             var isValid = Parser.Default.ParseArgumentsStrict(args, options);
+            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Pivot);
+            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Grid);
+            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Sampling);
+            if (!string.IsNullOrEmpty(options.SaasUrl))
+            {
+                foreach(var resfile in Directory.EnumerateFiles(new FileInfo(options.InputFile).Directory.FullName,"*.res"))
+                    AzureBatchExecution.UploadFileToContainer(resfile, options.SaasUrl);
+            }
+            return;
             
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
-            var numcoords = 10;
+            var numcoords = 15;
             Config = new ConfigParams("");
 
             if((Config.ActionList & Actions.Experiment_ComparePivots) != 0)
@@ -193,7 +196,7 @@ namespace SpatialEnrichment
             Console.WriteLine(samplingType);
             var sw = Stopwatch.StartNew();
              var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
-                new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
+                new Tuple<ICoordinate, bool>((new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(), sl[3] == "1")).ToList();
             var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
@@ -213,11 +216,13 @@ namespace SpatialEnrichment
                     break;
             }
             
-            var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:true, trackAll:true);
+            var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:false, trackAll:true);
             
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
-                new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{res.Item1.ToString(@"0.000")}" });
-            File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), gridGen.GetQvalues().Select(Convert.ToString));
+                new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{res.Item4},{res.Item1.ToString(@"0.000")}" });
+            var qvals = gridGen.GetQvalues().Select(Convert.ToString).Take(100).ToList();
+            if (qvals.Any())
+                File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), qvals);
             Console.WriteLine();
         }
 

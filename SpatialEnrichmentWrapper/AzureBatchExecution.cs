@@ -26,13 +26,16 @@ namespace SpatialEnrichmentWrapper
 
         private const string PoolId = "SpatialEnrichmentPool";
         private const string JobId = "SpatialEnrichmentJob";
-
+        public static TimeSpan ExpectedDuration = TimeSpan.FromHours(24.0);
         /// <summary>
         /// Provides an asynchronous version of the Main method, allowing for the awaiting of async method calls within.
         /// </summary>
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
         public static async Task MainAsync(List<string> inputFilePaths)
         {
+            var targetdirs = inputFilePaths.Select(f => new FileInfo(f).Directory.FullName).ToList();
+            var dest = targetdirs.First() == targetdirs.Last() ? targetdirs.First() : Environment.GetEnvironmentVariable("TEMP");
+
             Console.WriteLine("Sample start: {0}", DateTime.Now);
             Console.WriteLine();
             Stopwatch timer = new Stopwatch();
@@ -54,7 +57,7 @@ namespace SpatialEnrichmentWrapper
             const string outputContainerName = "output";
             await CreateContainerIfNotExistAsync(blobClient, appContainerName);
             await CreateContainerIfNotExistAsync(blobClient, inputContainerName);
-            await CreateContainerIfNotExistAsync(blobClient, outputContainerName);
+            var created = await CreateContainerIfNotExistAsync(blobClient, outputContainerName);
 
             // Paths to the executable and its dependencies that will be executed by the tasks
             
@@ -67,19 +70,26 @@ namespace SpatialEnrichmentWrapper
                 "Accord.Statistics.dll",
                 "SpatialEnrichmentWrapper.dll",
                 "Accord.dll",
+                "Accord.Math.dll",
+                "Accord.Math.Core.dll",
+                "Microsoft.Azure.Batch.dll",
                 "System.Spatial.dll",
                 "CommandLine.dll",
                 "AzureDatabaseQueryFunc.dll"
             };
-            
-            
+
+            //Download previous results
+            if (!created)
+            {
+                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, dest, true);
+            }
             // Upload the application and its dependencies to Azure Storage. This is the application that will
             // process the data files, and will be executed by each of the tasks on the compute nodes.
             List<ResourceFile> applicationFiles = await UploadFilesToContainerAsync(blobClient, appContainerName, applicationFilePaths);
-
+            
             // Upload the data files. This is the data that will be processed by each of the tasks that are
             // executed on the compute nodes within the pool.
-            List<ResourceFile> inputFiles = await UploadFilesToContainerAsync(blobClient, inputContainerName, inputFilePaths);
+            List<ResourceFile> inputFiles = await UploadFilesToContainerAsync(blobClient, inputContainerName, inputFilePaths.Where(f => !File.Exists(Path.ChangeExtension(f, ".res"))).ToList());
 
             // Obtain a shared access signature that provides write access to the output container to which
             // the tasks will upload their output.
@@ -102,10 +112,10 @@ namespace SpatialEnrichmentWrapper
                 await AddTasksAsync(batchClient, JobId, inputFiles, outputContainerSasUrl);
 
                 // Monitor task success/failure, specifying a maximum amount of time to wait for the tasks to complete
-                await MonitorTasks(batchClient, JobId, TimeSpan.FromHours(5));
-
+                await MonitorTasks(batchClient, JobId, ExpectedDuration);
+                
                 // Download the task output files from the output Storage container to a local directory
-                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, Environment.GetEnvironmentVariable("TEMP"));
+                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, dest);
 
                 // Clean up Storage resources
                 await DeleteContainerAsync(blobClient, appContainerName);
@@ -142,17 +152,19 @@ namespace SpatialEnrichmentWrapper
         /// <param name="blobClient">A <see cref="Microsoft.WindowsAzure.Storage.Blob.CloudBlobClient"/>.</param>
         /// <param name="containerName">The name for the new container.</param>
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
-        private static async Task CreateContainerIfNotExistAsync(CloudBlobClient blobClient, string containerName)
+        private static async Task<bool> CreateContainerIfNotExistAsync(CloudBlobClient blobClient, string containerName)
         {
             CloudBlobContainer container = blobClient.GetContainerReference(containerName);
 
             if (await container.CreateIfNotExistsAsync())
             {
                 Console.WriteLine("Container [{0}] created.", containerName);
+                return true;
             }
             else
             {
                 Console.WriteLine("Container [{0}] exists, skipping creation.", containerName);
+                return false;
             }
         }
 
@@ -171,7 +183,7 @@ namespace SpatialEnrichmentWrapper
             // so the shared access signature becomes valid immediately
             SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy
             {
-                SharedAccessExpiryTime = DateTime.UtcNow.AddHours(2),
+                SharedAccessExpiryTime = DateTime.UtcNow.AddHours(ExpectedDuration.TotalHours),
                 Permissions = permissions
             };
 
@@ -219,13 +231,21 @@ namespace SpatialEnrichmentWrapper
 
             CloudBlobContainer container = blobClient.GetContainerReference(containerName);
             CloudBlockBlob blobData = container.GetBlockBlobReference(blobName);
-            await blobData.UploadFromFileAsync(filePath);
+            bool exists = false;
+            if (blobData.Exists())
+            {
+                blobData.FetchAttributes();
+                if (blobData.Properties.Length == new FileInfo(filePath).Length)
+                    exists = true;
+            }
+            if (!exists)
+                await blobData.UploadFromFileAsync(filePath);
 
             // Set the expiry time and permissions for the blob shared access signature. In this case, no start time is specified,
             // so the shared access signature becomes valid immediately
             SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy
             {
-                SharedAccessExpiryTime = DateTime.UtcNow.AddHours(2),
+                SharedAccessExpiryTime = DateTime.UtcNow.AddHours(ExpectedDuration.TotalHours),
                 Permissions = SharedAccessBlobPermissions.Read
             };
 
@@ -337,7 +357,7 @@ namespace SpatialEnrichmentWrapper
             foreach (ResourceFile inputFile in inputFiles)
             {
                 var taskId = "spatialEnrichmentTask" + inputFiles.IndexOf(inputFile);
-                var taskCommandLine = $"cmd /c %AZ_BATCH_NODE_SHARED_DIR%\\SpatialEnrichment.exe {inputFile.FilePath} -b -u \"{outputContainerSasUrl}\"";
+                var taskCommandLine = $"cmd /c %AZ_BATCH_NODE_SHARED_DIR%\\SpatialEnrichment.exe -i {inputFile.FilePath} -b -u \"{outputContainerSasUrl}\"";
 
                 CloudTask task = new CloudTask(taskId, taskCommandLine);
                 task.ResourceFiles = new List<ResourceFile> { inputFile };
@@ -436,7 +456,7 @@ namespace SpatialEnrichmentWrapper
         /// <param name="containerName">The name of the blob storage container containing the files to download.</param>
         /// <param name="directoryPath">The full path of the local directory to which the files should be downloaded.</param>
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
-        private static async Task DownloadBlobsFromContainerAsync(CloudBlobClient blobClient, string containerName, string directoryPath)
+        private static async Task DownloadBlobsFromContainerAsync(CloudBlobClient blobClient, string containerName, string directoryPath, bool deleteAfter=false)
         {
             Console.WriteLine("Downloading all files from container [{0}]...", containerName);
 
@@ -452,6 +472,8 @@ namespace SpatialEnrichmentWrapper
                 // Save blob contents to a file in the specified folder
                 string localOutputFile = Path.Combine(directoryPath, blob.Name);
                 await blob.DownloadToFileAsync(localOutputFile, FileMode.Create);
+                if (deleteAfter)
+                    blob.Delete();
             }
 
             Console.WriteLine("All files downloaded to {0}", directoryPath);

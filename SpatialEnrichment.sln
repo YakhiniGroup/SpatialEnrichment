@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpatialExperiments", "Spati
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataParsingSandbox", "DataParsingSandbox\DataParsingSandbox.csproj", "{D83B4F77-BE43-4529-A82F-3CB91876CF7A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureBatchProcess", "AzureBatchProcess\AzureBatchProcess.csproj", "{109C157D-3D22-46DF-B90B-98487120A287}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,14 @@ Global
 		{D83B4F77-BE43-4529-A82F-3CB91876CF7A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D83B4F77-BE43-4529-A82F-3CB91876CF7A}.Release|x64.ActiveCfg = Release|Any CPU
 		{D83B4F77-BE43-4529-A82F-3CB91876CF7A}.Release|x64.Build.0 = Release|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Debug|x64.Build.0 = Debug|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Release|Any CPU.Build.0 = Release|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Release|x64.ActiveCfg = Release|Any CPU
+		{109C157D-3D22-46DF-B90B-98487120A287}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
