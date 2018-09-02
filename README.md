@@ -15,4 +15,4 @@ Saccharomyces cerevisiae
 ![](https://imgur.com/QXSZ6cK)
 
 Caulobacter crescentus
-![](https://imgur.com/RaLURAW)
+![](https://i.imgur.com/xGgTs1Z.gifv)
