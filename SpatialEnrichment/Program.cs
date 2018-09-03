@@ -198,7 +198,7 @@ namespace SpatialEnrichment
              var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
                 new Tuple<ICoordinate, bool>((new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(), sl[3] == "1")).ToList();
             var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
-            var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
+            var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList()).ToList();
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
             var gridGen = new Gridding(nrm);
@@ -216,7 +216,8 @@ namespace SpatialEnrichment
                     break;
             }
             
-            var res = gridGen.EvaluateDataset(data, maxDuration:maxDuration, consoleDbg:false, trackAll:true);
+            var res = gridGen.EvaluateDataset(normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList(), 
+                maxDuration:maxDuration, consoleDbg:false, trackAll:true);
             
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
                 new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{res.Item4},{res.Item1.ToString(@"0.000")}" });
