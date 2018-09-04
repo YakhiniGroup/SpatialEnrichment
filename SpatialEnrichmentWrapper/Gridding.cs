@@ -24,6 +24,7 @@ namespace SpatialEnrichmentWrapper
         public long EvaluatedPivots = 0;
         private ICoordinate CurrOptLoci;
         private double CurrOptPval;
+        private int CurrOptThresh;
 
         public System.Timers.Timer timer = new System.Timers.Timer();
         private StreamWriter _timerlog;
@@ -64,7 +65,7 @@ namespace SpatialEnrichmentWrapper
 
         private void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
-            _logQueue.Add($"{(e.SignalTime - _startTime).TotalSeconds},{EvaluatedPivots},{CurrOptPval},{nrm.DeNormalize(CurrOptLoci)}");
+            _logQueue.Add($"{(e.SignalTime - _startTime).TotalSeconds},{EvaluatedPivots},{CurrOptPval},{CurrOptThresh},{nrm.DeNormalize(CurrOptLoci)}");
         }
 
         public void ReturnPivots(IEnumerable<ICoordinate> data)
@@ -164,14 +165,15 @@ namespace SpatialEnrichmentWrapper
         }
 
 
-        public Tuple<ICoordinate, double, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false, bool trackAll=false)
+        public Tuple<ICoordinate, double, int, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false, bool trackAll=false)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var left = Console.CursorLeft;
-            var top = Console.CursorTop;
+            //var left = Console.CursorLeft;
+            //var top = Console.CursorTop;
             var tsks = new List<Task>();
             CurrOptLoci = null;
             CurrOptPval = 1.1;
+            CurrOptThresh = -1;
             long iterfound = -1;
             EvaluatedPivots = 0;
             object locker = new object();
@@ -195,6 +197,7 @@ namespace SpatialEnrichmentWrapper
                             {
                                 CurrOptLoci = nrm?.DeNormalize(pivot);
                                 CurrOptPval = res.Item1;
+                                CurrOptThresh = res.Item2;
                                 iterfound = EvaluatedPivots;
                             }
                         }
@@ -205,15 +208,15 @@ namespace SpatialEnrichmentWrapper
                         if (consoleDbg && EvaluatedPivots % 10000 == 0)
                         {
                             Console.Write($"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\rPivot #(computed/observed): {EvaluatedPivots:N0}/" +
-                           $"{NumPivots:N0}. Curr mHG={CurrOptPval}. Bonferroni={CurrOptPval * EvaluatedPivots}. Position:{CurrOptLoci.ToString(@"0.00")}");
-                            Console.SetCursorPosition(left, top);
+                           $"{NumPivots:N0}. Curr mHG={CurrOptPval}. Thresh={CurrOptThresh}. Bonferroni={CurrOptPval * EvaluatedPivots}. Position:{CurrOptLoci.ToString(@"0.00")}");
+                            //Console.SetCursorPosition(left, top);
                         }
                     }
                 }));
             
             Task.WaitAll(tsks.ToArray());
             if (debug != null) outfile.Close();
-            return new Tuple<ICoordinate, double, long>(CurrOptLoci, CurrOptPval, iterfound);
+            return new Tuple<ICoordinate, double, int, long>(CurrOptLoci, CurrOptPval, CurrOptThresh, iterfound);
         }
 
         public void GenerateBeadPivots(List<Tuple<ICoordinate, bool>> dataset)

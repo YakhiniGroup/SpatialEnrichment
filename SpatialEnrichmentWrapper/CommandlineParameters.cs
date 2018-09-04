@@ -9,6 +9,12 @@ namespace SpatialEnrichmentWrapper
 {
     public class CommandlineParameters
     {
+        [Option('d', "DurationMinutes", DefaultValue = 5.0, HelpText = @"Running time cap", Required = false)]
+        public double Duration { get; set; }
+
+        [Option('i', "InputFile", HelpText = @"Input file to analyze", Required = true)]
+        public string InputFile { get; set; }
+
         [Option('b',"BatchMode", DefaultValue = false, HelpText = @"Running on Azure batch", Required = false)]
         public bool BatchMode { get; set; }
 

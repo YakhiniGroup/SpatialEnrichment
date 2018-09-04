@@ -41,3 +41,6 @@ SpatialExperiments/bin/
 >>>>>>> b8a49eedc7f99cf58ce1c938cdee2fa997298409
 DataParsingSandbox/obj/
 DataParsingSandbox/bin/
+AzureBatchProcess/obj/
+AzureBatchProcess/bin/Debug/Accord.dll.config
+AzureBatchProcess/bin/

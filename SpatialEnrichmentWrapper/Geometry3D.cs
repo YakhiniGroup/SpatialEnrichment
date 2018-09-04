@@ -165,6 +165,11 @@ namespace SpatialEnrichmentWrapper
         {
             return new Coordinate3D(s * X, s * Y, s * Z);
         }
+
+        public ICoordinate Jitter(double scale = 1e-6)
+        {
+            return new Coordinate3D(X + StaticConfigParams.rnd.NextDouble() * scale, Y + StaticConfigParams.rnd.NextDouble() * scale, Z + StaticConfigParams.rnd.NextDouble() * scale) { CoordId = this.CoordId };
+        }
     }
 
 
