@@ -11,7 +11,38 @@ namespace DataParsingSandbox
     {
         static void Main(string[] args)
         {
-            ParseYeastRegulationDb();
+            //ParseYeastRegulationDb();
+            ParseResFileTrio(@"d:\Dropbox\Thesis-PHd\SpatialEnrichment\Yeast\Evaluate\");
+        }
+
+        public static void ParseResFileTrio(string rootpath)
+        {
+            var gridfiles = Directory.EnumerateFiles(rootpath, "*.Grid.res");
+            var sampfiles = Directory.EnumerateFiles(rootpath, "*.Sampling.res");
+            var pivtfiles = Directory.EnumerateFiles(rootpath, "*.Pivot.res");
+            var allfilegroups = gridfiles.Concat(sampfiles).Concat(pivtfiles).GroupBy(fn => fn.Split('.').First());
+            var dict = new Dictionary<string, Tuple<double, double, double>>();
+            foreach (var fg in allfilegroups)
+            {
+                var grid_res = 1.0;
+                var pivt_res = 1.0;
+                var samp_res = 1.0;
+
+                foreach (var f in fg)
+                {
+                    var tres = double.Parse(File.ReadLines(f).First().Trim(new[] { '(', ')' }).Split(',')[0]);
+                    if (f.Contains(".Grid."))
+                        grid_res = tres;
+                    else if (f.Contains(".Sampling."))
+                        samp_res = tres;
+                    else if (f.Contains(".Pivot."))
+                        pivt_res = tres;
+                }
+                var res = new Tuple<double, double, double>(grid_res,pivt_res,samp_res);
+                dict.Add(fg.Key, res);
+            }
+            File.WriteAllLines(rootpath + "aggregated.csv", dict.Select(kvp => kvp.Key + "," + kvp.Value.Item1 + "," + kvp.Value.Item2 + "," + kvp.Value.Item3));
+
         }
 
         public static void ParseYeastRegulationDb()
