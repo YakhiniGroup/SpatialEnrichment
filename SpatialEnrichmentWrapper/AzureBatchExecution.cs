@@ -16,13 +16,13 @@ namespace SpatialEnrichmentWrapper
     public class AzureBatchExecution
     {
         // Batch account credentials
-        private const string BatchAccountName = "phdresearch";
-        private const string BatchAccountKey = "9ZOjIdM35Nt9NR9aZRlG5xefBMgNfmdTfd/6NGSE3P8y+yrUS3wGMGIKoVW1mZIMEsG3mqCTPGlsO3gjW6YvMw==";
-        private const string BatchAccountUrl = "https://phdresearch.eastus.batch.azure.com";
+        private const string BatchAccountName = "phd";
+        private const string BatchAccountKey = "XTFqAAhWw6KnM3T9g3xqA/1/m4cR5fJkO62qP+LMp06slX56VbEgxK98HXg7PlCum+hYWeBh2ON5LGVjcFaQiQ==";
+        private const string BatchAccountUrl = "https://phd.ukwest.batch.azure.com";
 
         // Storage account credentials
-        private const string StorageAccountName = "phdresearch";
-        private const string StorageAccountKey = "PXrXNnXPW3ymQiG140QRq0aSYpmqVOZxt+KvJ65bTAsCy5mowEyIiOyqjxQ3r5Ru5M4QRrUvfvcqEGTKIR5lZg==";
+        private const string StorageAccountName = "shayphdstorage";
+        private const string StorageAccountKey = "dmVYNEnU7Oc7N2EaxUC2DD3NOuRugWiWVl3+Ao3cGECYKa9W+e7hT60Whd7lZAEQxN4PCCt+qCCqTYvJdV6WtQ==";
 
         private const string PoolId = "SpatialEnrichmentPool";
         private const string JobId = "SpatialEnrichmentJob";
