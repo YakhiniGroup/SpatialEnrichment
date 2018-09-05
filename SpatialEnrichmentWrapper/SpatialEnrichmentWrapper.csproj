@@ -118,7 +118,6 @@
     <Compile Include="Helpers\ConcurrentIndexing.cs" />
     <Compile Include="Helpers\ConcurrentPriorityQueue.cs" />
     <Compile Include="Helpers\CoordNeighborArray.cs" />
-    <Compile Include="Helpers\CUDAmHG.cs" />
     <Compile Include="Helpers\Generics.cs" />
     <Compile Include="Helpers\mHGJumper.cs" />
     <Compile Include="Helpers\ParseDatasets.cs" />

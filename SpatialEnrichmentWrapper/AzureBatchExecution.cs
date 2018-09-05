@@ -10,6 +10,7 @@ using Microsoft.Azure.Batch.Auth;
 using Microsoft.Azure.Batch.Common;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Newtonsoft.Json;
 
 namespace SpatialEnrichmentWrapper
 {
@@ -25,16 +26,37 @@ namespace SpatialEnrichmentWrapper
         private const string StorageAccountKey = "dmVYNEnU7Oc7N2EaxUC2DD3NOuRugWiWVl3+Ao3cGECYKa9W+e7hT60Whd7lZAEQxN4PCCt+qCCqTYvJdV6WtQ==";
 
         private const string PoolId = "SpatialEnrichmentPool";
-        private const string JobId = "SpatialEnrichmentJob";
+        
         public static TimeSpan ExpectedDuration = TimeSpan.FromHours(24.0);
+        public string InputPath;
+        private int JobIdx;
+        public string JobId => $"SmHG-{JobIdx}";
+        private string cachefile;
+        public AzureBatchExecution(string databasepath)
+        {
+            InputPath = databasepath;
+            cachefile = Path.Combine(InputPath, "batch.jobcache");
+            if (File.Exists(cachefile))
+            {
+                var jsoncache = JsonConvert.DeserializeObject<Dictionary<string,string>>(File.ReadAllText(cachefile));
+                JobIdx = int.Parse(jsoncache["JobIdx"]);
+            }
+            else
+            {
+                JobIdx = new Random().Next();
+                var cachedata = new Dictionary<string, string>() { { "JobIdx", JobIdx.ToString() } };
+                var jsonstr = JsonConvert.SerializeObject(cachedata, Formatting.Indented);
+                File.WriteAllText(cachefile, jsonstr);
+            }
+        }
+
         /// <summary>
         /// Provides an asynchronous version of the Main method, allowing for the awaiting of async method calls within.
         /// </summary>
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
-        public static async Task MainAsync(List<string> inputFilePaths)
+        public async Task MainAsync(List<string> inputFilePaths)
         {
             var targetdirs = inputFilePaths.Select(f => new FileInfo(f).Directory.FullName).ToList();
-            var dest = targetdirs.First() == targetdirs.Last() ? targetdirs.First() : Environment.GetEnvironmentVariable("TEMP");
 
             Console.WriteLine("Sample start: {0}", DateTime.Now);
             Console.WriteLine();
@@ -53,8 +75,8 @@ namespace SpatialEnrichmentWrapper
 
             // Use the blob client to create the containers in Azure Storage if they don't yet exist
             const string appContainerName = "application";
-            const string inputContainerName = "input";
-            const string outputContainerName = "output";
+            string inputContainerName = "input-" + JobIdx.ToString();
+            string outputContainerName = "output-" + JobIdx.ToString();
             await CreateContainerIfNotExistAsync(blobClient, appContainerName);
             await CreateContainerIfNotExistAsync(blobClient, inputContainerName);
             var created = await CreateContainerIfNotExistAsync(blobClient, outputContainerName);
@@ -81,7 +103,7 @@ namespace SpatialEnrichmentWrapper
             //Download previous results
             if (!created)
             {
-                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, dest, true);
+                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, InputPath, true);
             }
             // Upload the application and its dependencies to Azure Storage. This is the application that will
             // process the data files, and will be executed by each of the tasks on the compute nodes.
@@ -115,10 +137,10 @@ namespace SpatialEnrichmentWrapper
                 await MonitorTasks(batchClient, JobId, ExpectedDuration);
                 
                 // Download the task output files from the output Storage container to a local directory
-                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, dest);
+                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, InputPath);
 
                 // Clean up Storage resources
-                await DeleteContainerAsync(blobClient, appContainerName);
+                //await DeleteContainerAsync(blobClient, appContainerName);
                 await DeleteContainerAsync(blobClient, inputContainerName);
                 await DeleteContainerAsync(blobClient, outputContainerName);
 
@@ -129,6 +151,11 @@ namespace SpatialEnrichmentWrapper
                 Console.WriteLine("Elapsed time: {0}", timer.Elapsed);
 
                 // Clean up Batch resources (if the user so chooses)
+                Console.WriteLine();
+                Console.Write("Deleted cache.");
+                if (File.Exists(cachefile))
+                    File.Delete(cachefile);
+
                 Console.WriteLine();
                 Console.Write("Delete job? [yes] no: ");
                 string response = Console.ReadLine().ToLower();
@@ -325,8 +352,8 @@ namespace SpatialEnrichmentWrapper
         private static async Task CreateJobAsync(BatchClient batchClient, string jobId, string poolId)
         {
             Console.WriteLine("Creating job [{0}]...", jobId);
-
-            CloudJob job = batchClient.JobOperations.CreateJob();
+            var prevjob = batchClient.JobOperations.ListJobs().FirstOrDefault(j => j.Id == jobId);
+            CloudJob job = prevjob ?? batchClient.JobOperations.CreateJob();
             job.Id = jobId;
             job.PoolInformation = new PoolInformation { PoolId = poolId };
 
@@ -356,7 +383,7 @@ namespace SpatialEnrichmentWrapper
             // the shared directory on whichever node each task will run.
             foreach (ResourceFile inputFile in inputFiles)
             {
-                var taskId = "spatialEnrichmentTask" + inputFiles.IndexOf(inputFile);
+                var taskId = "SmHGTask" + inputFiles.IndexOf(inputFile);
                 var taskCommandLine = $"cmd /c %AZ_BATCH_NODE_SHARED_DIR%\\SpatialEnrichment.exe -i {inputFile.FilePath} -b -u \"{outputContainerSasUrl}\"";
 
                 CloudTask task = new CloudTask(taskId, taskCommandLine);
@@ -379,7 +406,7 @@ namespace SpatialEnrichmentWrapper
         /// <param name="jobId">The id of the job containing the tasks that should be monitored.</param>
         /// <param name="timeout">The period of time to wait for the tasks to reach the completed state.</param>
         /// <returns><c>true</c> if all tasks in the specified job completed with an exit code of 0 within the specified timeout period, otherwise <c>false</c>.</returns>
-        private static async Task<bool> MonitorTasks(BatchClient batchClient, string jobId, TimeSpan timeout)
+        private async Task<bool> MonitorTasks(BatchClient batchClient, string jobId, TimeSpan timeout)
         {
             bool allTasksSuccessful = true;
             const string successMessage = "All tasks reached state Completed.";
@@ -389,7 +416,7 @@ namespace SpatialEnrichmentWrapper
             // specify that only the "id" property of each task should be populated. Using a detail level for
             // all list operations helps to lower response time from the Batch service.
             ODATADetailLevel detail = new ODATADetailLevel(selectClause: "id");
-            List<CloudTask> tasks = await batchClient.JobOperations.ListTasks(JobId, detail).ToListAsync();
+            List<CloudTask> tasks = await batchClient.JobOperations.ListTasks(jobId, detail).ToListAsync();
 
             Console.WriteLine("Awaiting task completion, timeout in {0}...", timeout.ToString());
 

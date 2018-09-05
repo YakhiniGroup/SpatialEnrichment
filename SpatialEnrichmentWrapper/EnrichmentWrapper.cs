@@ -122,7 +122,8 @@ namespace SpatialEnrichmentWrapper
                         fileList.Add($@"3D\2dProblems\coords{currIdx}.csv");
                     });
                     Console.WriteLine(@"Done. Initializing Batch pool.");
-                    AzureBatchExecution.MainAsync(fileList).Wait();
+                    var job = new AzureBatchExecution("wrapper");
+                    job.MainAsync(fileList).Wait();
                 }
                 else
                 {
