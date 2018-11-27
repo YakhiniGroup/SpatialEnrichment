@@ -16,7 +16,7 @@ namespace SpatialEnrichment
 {
     public class Coordinate : IEquatable<Coordinate>, ICoordinate
     {
-        public readonly double X, Y;
+        public double X, Y;
         public int? CoordId { get; set; }
         public Coordinate(double x, double y)
         {
@@ -38,6 +38,22 @@ namespace SpatialEnrichment
                     throw new NotImplementedException("Two dimensional data does not implement get dim >1!");
             }
         }
+
+        public void SetDimension(int dim, double value)
+        {
+            switch (dim)
+            {
+                case 0:
+                    X = value;
+                    break;
+                case 1:
+                    Y = value;
+                    break;
+                default:
+                    throw new NotImplementedException("Two dimensional data does not implement set dim >1!");
+            }
+        }
+
 
         public double Norm()
         {

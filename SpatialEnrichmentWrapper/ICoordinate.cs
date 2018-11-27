@@ -8,6 +8,7 @@
         string ToString();
         string ToString(string format);
         double GetDimension(int dim);
+        void SetDimension(int dim, double value);
         int GetDimensionality();
     }
 }

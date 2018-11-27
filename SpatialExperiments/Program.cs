@@ -37,7 +37,7 @@ namespace SpatialExperiments
             var data = File.ReadAllLines(file).Select(l => l.Split(',')).Select(sl =>
                     new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
 
-            var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
+            var nrm = new MinMaxNormalizer(data.Select(d => d.Item1).ToList());
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             var normalizedDataset = normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList();
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
@@ -57,7 +57,7 @@ namespace SpatialExperiments
             var data = File.ReadAllLines(file).Select(l => l.Split(',')).Select(sl =>
                     new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
 
-            var nrm = new Normalizer(data.Select(d => d.Item1).ToList());
+            var nrm = new MinMaxNormalizer(data.Select(d => d.Item1).ToList());
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             var normalizedDataset = normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList();
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));

@@ -159,13 +159,63 @@ namespace SpatialEnrichment.Helpers
         }
     }
 
-    public class Normalizer
+
+
+    public interface INormalizer
+    {
+        void FitParameters(List<ICoordinate> coords);
+        IEnumerable<ICoordinate> Normalize(List<ICoordinate> coords);
+        ICoordinate DeNormalize(ICoordinate c);
+
+    }
+
+    public class NormaNormalizer : INormalizer
+    {
+        private double maxnorm;
+        public void FitParameters(List<ICoordinate> coords)
+        {
+            maxnorm = coords.Max(c => c.Norm());
+        }
+
+        public IEnumerable<ICoordinate> Normalize(List<ICoordinate> coords)
+        {
+            foreach (var c in coords)
+            {
+                for (var d = 0; d < c.GetDimensionality(); d++)
+                    c.SetDimension(d, c.GetDimension(d) / maxnorm);
+                yield return c;
+            }
+        }
+
+        public ICoordinate DeNormalize(ICoordinate c)
+        {
+            for (var d = 0; d < c.GetDimensionality(); d++)
+                c.SetDimension(d, c.GetDimension(d) * maxnorm);
+            return c;
+        }
+    }
+
+
+    public class MinMaxNormalizer : INormalizer
     {
         private int dim;
         private double[] botranges;
         private double[] topranges;
         private double[] denom => topranges.Zip(botranges, (a, b) => a - b).ToArray();
-        public Normalizer(List<ICoordinate> coords)
+
+        public MinMaxNormalizer(List<ICoordinate> coords)
+        {
+            dim = coords.First().GetDimensionality();
+            botranges = new double[dim];
+            topranges = new double[dim];
+            for (var i = 0; i < dim; i++)
+            {
+                botranges[i] = coords.Min(c => c.GetDimension(i));
+                topranges[i] = coords.Max(c => c.GetDimension(i));
+            }
+        }
+
+        public void FitParameters(List<ICoordinate> coords)
         {
             dim = coords.First().GetDimensionality();
             botranges = new double[dim];
@@ -219,7 +269,6 @@ namespace SpatialEnrichment.Helpers
                     break;
             }
         }
-
     }
 
 

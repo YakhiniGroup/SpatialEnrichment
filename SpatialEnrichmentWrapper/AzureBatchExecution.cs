@@ -17,13 +17,13 @@ namespace SpatialEnrichmentWrapper
     public class AzureBatchExecution
     {
         // Batch account credentials
-        private const string BatchAccountName = "phd";
-        private const string BatchAccountKey = "XTFqAAhWw6KnM3T9g3xqA/1/m4cR5fJkO62qP+LMp06slX56VbEgxK98HXg7PlCum+hYWeBh2ON5LGVjcFaQiQ==";
-        private const string BatchAccountUrl = "https://phd.ukwest.batch.azure.com";
+        public static string BatchAccountName = "phdresearch";
+        public static string BatchAccountKey = "dv5Q6DV91fAsROpZwSETXy1Crclx0tT2aEQ/YBh/XqoZ3BS3j0k+imdxpMUd8PFUqDExsQZPlf++2GOifyD6hA==";
+        public static string BatchAccountUrl = "https://phdresearch.westus2.batch.azure.com";
 
         // Storage account credentials
-        private const string StorageAccountName = "shayphdstorage";
-        private const string StorageAccountKey = "dmVYNEnU7Oc7N2EaxUC2DD3NOuRugWiWVl3+Ao3cGECYKa9W+e7hT60Whd7lZAEQxN4PCCt+qCCqTYvJdV6WtQ==";
+        public static string StorageAccountName = "phdstorageacc";
+        public static string StorageAccountKey = "bGXlDXtIkGo+2NTpQMtAHK/tmsp8pZ9UVObqkd8u/GBuFzceDCEEWaQiN1dAcpMxUgBfkB3+iHOyqrSboUp9jg==";
 
         private const string PoolId = "SpatialEnrichmentPool";
         
@@ -40,11 +40,23 @@ namespace SpatialEnrichmentWrapper
             {
                 var jsoncache = JsonConvert.DeserializeObject<Dictionary<string,string>>(File.ReadAllText(cachefile));
                 JobIdx = int.Parse(jsoncache["JobIdx"]);
+                BatchAccountName = jsoncache["BatchAccountName"];
+                BatchAccountKey = jsoncache["BatchAccountKey"];
+                BatchAccountUrl = jsoncache["BatchAccountUrl"];
+                StorageAccountName = jsoncache["StorageAccountName"];
+                StorageAccountKey = jsoncache["StorageAccountKey"];
             }
             else
             {
                 JobIdx = new Random().Next();
-                var cachedata = new Dictionary<string, string>() { { "JobIdx", JobIdx.ToString() } };
+                var cachedata = new Dictionary<string, string>() {
+                    { "JobIdx", JobIdx.ToString() },
+                    { "BatchAccountName", BatchAccountName},
+                    { "BatchAccountKey",BatchAccountKey},
+                    {"BatchAccountUrl",BatchAccountUrl},
+                    {"StorageAccountName", StorageAccountName},
+                    {"StorageAccountKey",StorageAccountKey}
+                };
                 var jsonstr = JsonConvert.SerializeObject(cachedata, Formatting.Indented);
                 File.WriteAllText(cachefile, jsonstr);
             }
@@ -56,8 +68,6 @@ namespace SpatialEnrichmentWrapper
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
         public async Task MainAsync(List<string> inputFilePaths)
         {
-            var targetdirs = inputFilePaths.Select(f => new FileInfo(f).Directory.FullName).ToList();
-
             Console.WriteLine("Sample start: {0}", DateTime.Now);
             Console.WriteLine();
             Stopwatch timer = new Stopwatch();
@@ -80,9 +90,31 @@ namespace SpatialEnrichmentWrapper
             await CreateContainerIfNotExistAsync(blobClient, appContainerName);
             await CreateContainerIfNotExistAsync(blobClient, inputContainerName);
             var created = await CreateContainerIfNotExistAsync(blobClient, outputContainerName);
+            BatchSharedKeyCredentials cred;
+            //Download previous results
+            if (!created)
+            {
+                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, InputPath, true);
+                inputFilePaths = inputFilePaths.Where(f => !File.Exists(Path.ChangeExtension(f, ".res"))).ToList();
+                if (!inputFilePaths.Any())
+                {
+                    await DeleteContainerAsync(blobClient, inputContainerName);
+                    await DeleteContainerAsync(blobClient, outputContainerName);
+                    if (File.Exists(cachefile))
+                        File.Delete(cachefile);
+                    Console.WriteLine("Delete job? [y/n]");
+                    string response = Console.ReadLine().ToLower();
+                    if (response != "n" && response != "no")
+                    {
+                        cred = new BatchSharedKeyCredentials(BatchAccountUrl, BatchAccountName, BatchAccountKey);
+                        using (BatchClient batchClient = BatchClient.Open(cred))
+                            await batchClient.JobOperations.DeleteJobAsync(JobId);
+                    }
+                    return;
+                }
+            }
 
             // Paths to the executable and its dependencies that will be executed by the tasks
-            
             List<string> applicationFilePaths = new List<string>
             {
                 // The DotNetTutorial project includes a project reference to TaskApplication, allowing us to
@@ -100,25 +132,21 @@ namespace SpatialEnrichmentWrapper
                 "AzureDatabaseQueryFunc.dll"
             };
 
-            //Download previous results
-            if (!created)
-            {
-                await DownloadBlobsFromContainerAsync(blobClient, outputContainerName, InputPath, true);
-            }
+
             // Upload the application and its dependencies to Azure Storage. This is the application that will
             // process the data files, and will be executed by each of the tasks on the compute nodes.
             List<ResourceFile> applicationFiles = await UploadFilesToContainerAsync(blobClient, appContainerName, applicationFilePaths);
             
             // Upload the data files. This is the data that will be processed by each of the tasks that are
             // executed on the compute nodes within the pool.
-            List<ResourceFile> inputFiles = await UploadFilesToContainerAsync(blobClient, inputContainerName, inputFilePaths.Where(f => !File.Exists(Path.ChangeExtension(f, ".res"))).ToList());
+            List<ResourceFile> inputFiles = await UploadFilesToContainerAsync(blobClient, inputContainerName, inputFilePaths);
 
             // Obtain a shared access signature that provides write access to the output container to which
             // the tasks will upload their output.
             string outputContainerSasUrl = GetContainerSasUrl(blobClient, outputContainerName, SharedAccessBlobPermissions.Write);
 
             // Create a BatchClient. We'll now be interacting with the Batch service in addition to Storage
-            BatchSharedKeyCredentials cred = new BatchSharedKeyCredentials(BatchAccountUrl, BatchAccountName, BatchAccountKey);
+            cred = new BatchSharedKeyCredentials(BatchAccountUrl, BatchAccountName, BatchAccountKey);
             using (BatchClient batchClient = BatchClient.Open(cred))
             {
                 // Create the pool that will contain the compute nodes that will execute the tasks.
@@ -127,11 +155,12 @@ namespace SpatialEnrichmentWrapper
                 await CreatePoolIfNotExistAsync(batchClient, PoolId, applicationFiles);
 
                 // Create the job that will run the tasks.
-                await CreateJobAsync(batchClient, JobId, PoolId);
+                var jobcreated = await CreateJobAsync(batchClient, JobId, PoolId);
 
                 // Add the tasks to the job. We need to supply a container shared access signature for the
                 // tasks so that they can upload their output to Azure Storage.
-                await AddTasksAsync(batchClient, JobId, inputFiles, outputContainerSasUrl);
+                if (jobcreated)
+                    await AddTasksAsync(batchClient, JobId, inputFiles, outputContainerSasUrl);
 
                 // Monitor task success/failure, specifying a maximum amount of time to wait for the tasks to complete
                 await MonitorTasks(batchClient, JobId, ExpectedDuration);
@@ -303,11 +332,18 @@ namespace SpatialEnrichmentWrapper
                 // Batch service. This CloudPool instance is therefore considered "unbound," and we can modify its properties.
                 pool = batchClient.PoolOperations.CreatePool(
                     poolId: poolId,
-                    targetDedicatedComputeNodes: 4,                                             // 3 compute nodes
-                    targetLowPriorityComputeNodes: 10,
-                    virtualMachineSize: "A7",                                                // 8-core, 56 GB memory, 2040 GB disk
+                    //targetDedicatedComputeNodes: 4,                                             // 3 compute nodes
+                    //targetLowPriorityComputeNodes: 10,
+                    virtualMachineSize: "Standard_A8_v2",                                                // 8-core, 56 GB memory, 2040 GB disk
                     cloudServiceConfiguration: new CloudServiceConfiguration(osFamily: "5"));   // Windows Server
-
+                pool.AutoScaleEnabled = true;
+                pool.AutoScaleFormula = @"startingNumberOfVMs = 0;
+maxNumberofDedicatedVMs = 2;
+maxNumberofLowPrioVMs = 10;
+pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+$TargetDedicatedNodes=min(maxNumberofDedicatedVMs, pendingTaskSamples / 2);
+$TargetLowPriorityNodes=min(maxNumberofLowPrioVMs, pendingTaskSamples / 2)";
                 // Create and assign the StartTask that will be executed when compute nodes join the pool.
                 // In this case, we copy the StartTask's resource files (that will be automatically downloaded
                 // to the node by the StartTask) into the shared directory that all tasks will have access to.
@@ -349,15 +385,20 @@ namespace SpatialEnrichmentWrapper
         /// <param name="jobId">The id of the job to be created.</param>
         /// <param name="poolId">The id of the <see cref="CloudPool"/> in which to create the job.</param>
         /// <returns>A <see cref="System.Threading.Tasks.Task"/> object that represents the asynchronous operation.</returns>
-        private static async Task CreateJobAsync(BatchClient batchClient, string jobId, string poolId)
+        private static async Task<bool> CreateJobAsync(BatchClient batchClient, string jobId, string poolId)
         {
             Console.WriteLine("Creating job [{0}]...", jobId);
             var prevjob = batchClient.JobOperations.ListJobs().FirstOrDefault(j => j.Id == jobId);
-            CloudJob job = prevjob ?? batchClient.JobOperations.CreateJob();
-            job.Id = jobId;
-            job.PoolInformation = new PoolInformation { PoolId = poolId };
-
-            await job.CommitAsync();
+            CloudJob job;
+            if (prevjob == null)
+            {
+                job= batchClient.JobOperations.CreateJob();
+                job.Id = jobId;
+                job.PoolInformation = new PoolInformation { PoolId = poolId };
+                await job.CommitAsync();
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -423,16 +464,24 @@ namespace SpatialEnrichmentWrapper
             // We use a TaskStateMonitor to monitor the state of our tasks. In this case, we will wait for all tasks to
             // reach the Completed state.
             TaskStateMonitor taskStateMonitor = batchClient.Utilities.CreateTaskStateMonitor();
-            try
-            {
-                await taskStateMonitor.WhenAll(tasks, TaskState.Completed, timeout);
-            }
-            catch (TimeoutException)
-            {
-                await batchClient.JobOperations.TerminateJobAsync(jobId, failureMessage);
-                Console.WriteLine(failureMessage);
-                return false;
-            }
+            bool done=false;
+            while (!done)
+                try
+                {
+                    await taskStateMonitor.WhenAll(tasks, TaskState.Completed, timeout);
+                    done = true;
+                }
+                catch (TimeoutException)
+                {
+                    await batchClient.JobOperations.TerminateJobAsync(jobId, failureMessage);
+                    Console.WriteLine(failureMessage);
+                    return false;
+                }
+                catch (BatchException be)
+                {
+                    if (be.RequestInformation?.BatchError != null && be.RequestInformation.BatchError.Code == BatchErrorCodeStrings.PoolExists)
+                        Console.WriteLine($"Error: {be.RequestInformation?.BatchError?.Code?.ToString()}");
+                }
 
             await batchClient.JobOperations.TerminateJobAsync(jobId, successMessage);
 

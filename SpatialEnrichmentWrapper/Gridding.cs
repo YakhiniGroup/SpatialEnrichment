@@ -32,15 +32,15 @@ namespace SpatialEnrichmentWrapper
         private BlockingCollection<string> _logQueue;
         private ConcurrentBag<Tuple<double, int, ICoordinate>> pValueHistory;
         private Task _logTask;
-        private Normalizer nrm;
-        public Gridding(Normalizer norm = null)
+        private INormalizer nrm;
+        public Gridding(INormalizer norm = null)
         {
             nrm = norm;
             Pivots = new BlockingCollection<ICoordinate>(5000);
             elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
-        public void StartTimeDebug(string filename, Normalizer cnrm, double interval = 10000)
+        public void StartTimeDebug(string filename, MinMaxNormalizer cnrm, double interval = 10000)
         {
             nrm = cnrm;
             timer.Interval = interval;
@@ -165,7 +165,7 @@ namespace SpatialEnrichmentWrapper
         }
 
 
-        public Tuple<ICoordinate, double, int, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false, bool trackAll=false)
+        public Tuple<ICoordinate, double, int, int, long> EvaluateDataset(List<Tuple<ICoordinate, bool>> dataset, int parallelization = 10, string debug=null, TimeSpan? maxDuration = null, bool consoleDbg=false, bool trackAll=false)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             //var left = Console.CursorLeft;
@@ -174,6 +174,7 @@ namespace SpatialEnrichmentWrapper
             CurrOptLoci = null;
             CurrOptPval = 1.1;
             CurrOptThresh = -1;
+            int smallBinOptThresh = -1;
             long iterfound = -1;
             EvaluatedPivots = 0;
             object locker = new object();
@@ -195,14 +196,15 @@ namespace SpatialEnrichmentWrapper
                         {
                             if (res.Item1 < CurrOptPval)
                             {
-                                CurrOptLoci = nrm?.DeNormalize(pivot);
+                                CurrOptLoci = nrm != null ? nrm.DeNormalize(pivot) : pivot;
                                 CurrOptPval = res.Item1;
                                 CurrOptThresh = res.Item2;
+                                smallBinOptThresh = binvec.Take(CurrOptThresh).Count(v=>v);
                                 iterfound = EvaluatedPivots;
                             }
                         }
                         if (debug != null)
-                            outfile.WriteLine(pivot);
+                            outfile.WriteLine(nrm != null ? nrm.DeNormalize(pivot) : pivot);
                         if (maxDuration.HasValue && sw.Elapsed > maxDuration.Value)
                             return;
                         if (consoleDbg && EvaluatedPivots % 10000 == 0)
@@ -216,7 +218,7 @@ namespace SpatialEnrichmentWrapper
             
             Task.WaitAll(tsks.ToArray());
             if (debug != null) outfile.Close();
-            return new Tuple<ICoordinate, double, int, long>(CurrOptLoci, CurrOptPval, CurrOptThresh, iterfound);
+            return new Tuple<ICoordinate, double, int, int, long>(CurrOptLoci, CurrOptPval, CurrOptThresh, smallBinOptThresh, iterfound);
         }
 
         public void GenerateBeadPivots(List<Tuple<ICoordinate, bool>> dataset)

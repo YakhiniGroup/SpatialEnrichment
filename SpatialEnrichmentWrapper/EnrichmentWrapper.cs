@@ -35,12 +35,12 @@ namespace SpatialEnrichmentWrapper
         public List<ISpatialmHGResult> SpatialmHGWrapper(List<Tuple<double, double, bool>> coordinates)
         {
             List<SpatialmHGResult> solutions;
-            Normalizer nrm;
+            MinMaxNormalizer nrm;
             try
             {
                 var labels = coordinates.Select(t => t.Item3).ToList();
                 var coords = coordinates.Select(t => (ICoordinate)new Coordinate(t.Item1, t.Item2)).ToList();
-                nrm = new Normalizer(coords);
+                nrm = new MinMaxNormalizer(coords);
                 var normcoords = nrm.Normalize(coords).Select(c=>(Coordinate)c).ToList();
                 InitializeMHG(labels);
                 solutions = Solve2DProblem(normcoords, labels);
@@ -59,7 +59,7 @@ namespace SpatialEnrichmentWrapper
         public List<ISpatialmHGResult> SpatialmHGWrapper3D(List<Tuple<double, double, double, bool>> input, bool runViaAzure = false)
         {
             var coordinates = input.Select(c => (ICoordinate)new Coordinate3D(c.Item1, c.Item2, c.Item3)).ToList();
-            Normalizer nrm = new Normalizer(coordinates);
+            MinMaxNormalizer nrm = new MinMaxNormalizer(coordinates);
             var normcoords = nrm.Normalize(coordinates).Select(c => (Coordinate3D)c).ToList();
             var labels = input.Select(c => c.Item4).ToList();
             InitializeMHG(labels);
@@ -297,7 +297,7 @@ namespace SpatialEnrichmentWrapper
             Generics.SaveToCSV(toSave, filename, true);
         }
 
-        public void Denormalize(Normalizer nrm)
+        public void Denormalize(MinMaxNormalizer nrm)
         {
             var nc = nrm.DeNormalize(new Coordinate(X, Y));
             X = nc.GetDimension(0);
@@ -354,7 +354,7 @@ namespace SpatialEnrichmentWrapper
             Generics.SaveToCSV(toSave, filename, true);
         }
 
-        public void Denormalize(Normalizer nrm)
+        public void Denormalize(MinMaxNormalizer nrm)
         {
             var nc = nrm.DeNormalize(new Coordinate3D(X, Y, Z));
             X = nc.GetDimension(0);
@@ -373,7 +373,7 @@ namespace SpatialEnrichmentWrapper
     public interface ISpatialmHGResult
     {
         void SaveToCSV(string csv);
-        void Denormalize(Normalizer nrm);
+        void Denormalize(MinMaxNormalizer nrm);
     }
 
     

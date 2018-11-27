@@ -12,7 +12,7 @@ namespace SpatialEnrichmentWrapper
 {
     public class Coordinate3D : IEquatable<Coordinate3D>, ICoordinate
     {
-        public readonly double X, Y, Z;
+        public double X, Y, Z;
         public int? CoordId { get; set; }
 
         public Coordinate3D(string str)
@@ -47,6 +47,24 @@ namespace SpatialEnrichmentWrapper
                     return Z;
                 default:
                     throw new NotImplementedException("Three dimensional data does not implement get dim >2!");
+            }
+        }
+
+        public void SetDimension(int dim, double value)
+        {
+            switch (dim)
+            {
+                case 0:
+                    X = value;
+                    break;
+                case 1:
+                    Y = value;
+                    break;
+                case 2:
+                    Z = value;
+                    break;
+                default:
+                    throw new NotImplementedException("Three dimensional data does not implement set dim >2!");
             }
         }
 
@@ -166,7 +184,7 @@ namespace SpatialEnrichmentWrapper
             return new Coordinate3D(s * X, s * Y, s * Z);
         }
 
-        public ICoordinate Jitter(double scale = 1e-6)
+        public ICoordinate Jitter(double scale = 1e-10)
         {
             return new Coordinate3D(X + StaticConfigParams.rnd.NextDouble() * scale, Y + StaticConfigParams.rnd.NextDouble() * scale, Z + StaticConfigParams.rnd.NextDouble() * scale) { CoordId = this.CoordId };
         }

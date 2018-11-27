@@ -38,6 +38,8 @@ namespace SpatialEnrichment.Helpers
         
         public static void Initialize(int ones, int zeros)
         {
+            if (ones == 0 || zeros == 0)
+                throw new ArgumentException("Missing zeros or ones");
             optHGT = 0.05;
             if (Ones == ones && Zeros == zeros && HGTmat != null)
             {
@@ -188,7 +190,7 @@ namespace SpatialEnrichment.Helpers
             for (var i = 1; i < Zeros + 1; i++)
                 for (var j = 1; j < Ones + 1; j++)
                 {
-                    var isInR = HGTmat[i, j] <= hgtScore + StaticConfigParams.TOLERANCE;
+                    var isInR = HGTmat[i, j] <= hgtScore;// + StaticConfigParams.TOLERANCE;
                     pMat[i, j] = isInR ? 0 : pMat[i - 1, j] + pMat[i, j - 1];
                 }
             return pMat[Zeros,Ones];

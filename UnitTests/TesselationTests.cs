@@ -15,6 +15,29 @@ namespace UnitTests
     public class TesselationTests
     {
         [TestMethod]
+        public void ValidatemHG()
+        {
+            var filename = @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Pombe\HiC\diff_wt_GSM1379431_SPK567.csv";
+            var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
+                new Tuple<ICoordinate, bool>((new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(), sl[3] == "1")).ToList();
+
+            mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
+            mHGJumper.optHGT = 1;
+
+            var results = File.ReadAllLines(Path.ChangeExtension(filename, ".res"));
+            for (var i = 0; i < 3; i++)
+            {
+                var sl = results[i].Split(',');
+                var pval = double.Parse(sl[0].Split(' ')[1]);
+                var pivot = new Coordinate3D(double.Parse(sl[3]), double.Parse(sl[4]), double.Parse(sl[5]));
+                var res = mHGJumper.minimumHypergeometric(data.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(v => v.Item2));
+                Assert.AreEqual(pval, res.Item1, 1e5);
+            }
+
+        }
+
+
+        [TestMethod]
         public void VolatileGradientDescent()
         {
             var Config = new ConfigParams("");
