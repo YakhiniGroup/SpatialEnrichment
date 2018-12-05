@@ -199,8 +199,8 @@ namespace SpatialEnrichment.Helpers
     public class MinMaxNormalizer : INormalizer
     {
         private int dim;
-        private double[] botranges;
-        private double[] topranges;
+        public double[] botranges;
+        public double[] topranges;
         private double[] denom => topranges.Zip(botranges, (a, b) => a - b).ToArray();
 
         public MinMaxNormalizer(List<ICoordinate> coords)

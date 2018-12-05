@@ -16,6 +16,7 @@ namespace SpatialEnrichmentWrapper
     public enum GridType { Empirical, Uniform }
     public class Gridding
     {
+        private SamplingType _type;
         private Task producer;
         public BlockingCollection<ICoordinate> Pivots;
         private IEnumerator<ICoordinate> elementEnumerator;
@@ -30,17 +31,18 @@ namespace SpatialEnrichmentWrapper
         private StreamWriter _timerlog;
         private DateTime _startTime;
         private BlockingCollection<string> _logQueue;
-        private ConcurrentBag<Tuple<double, int, ICoordinate>> pValueHistory;
+        private ConcurrentBag<Tuple<double, int, int, ICoordinate>> pValueHistory;
         private Task _logTask;
         private INormalizer nrm;
-        public Gridding(INormalizer norm = null)
+        public Gridding(SamplingType type, INormalizer norm = null)
         {
+            _type = type;
             nrm = norm;
             Pivots = new BlockingCollection<ICoordinate>(5000);
             elementEnumerator = Pivots.GetConsumingEnumerable().GetEnumerator();
         }
 
-        public void StartTimeDebug(string filename, MinMaxNormalizer cnrm, double interval = 10000)
+        public void StartTimeDebug(string filename, INormalizer cnrm, double interval = 10000)
         {
             nrm = cnrm;
             timer.Interval = interval;
@@ -80,21 +82,30 @@ namespace SpatialEnrichmentWrapper
 			});
 		}
 
-        public List<Tuple<double,int,ICoordinate>> GetQvalues(double qthreshold = 0.05)
+        public List<Tuple<double,int, int,ICoordinate>> GetQvalues(double qthreshold = 0.05)
         {
             var qvals = pValueHistory.Select(v=>v.Item1).ToList().FDRCorrection();
-            var res = qvals.Zip(pValueHistory, (a, b) => Tuple.Create(a, b.Item2, b.Item3)).Where(v => v.Item1 < qthreshold).OrderBy(v => v.Item1).ToList();
+            var res = qvals.Zip(pValueHistory, (a, b) => Tuple.Create(a, b.Item2, b.Item3, b.Item4))
+                .OrderBy(v => v.Item1).TakeWhile((v,idx) => (v.Item1 < qthreshold || idx < 10) && idx < 100).ToList();
             return res;
         }
 
-        public void GeneratePivotGrid(long numsamples, int dim=2, double buffer=0.1)
+        //Generate linearly spaced vector
+        public static IEnumerable<double> LinSpace(double from, double to, int k)
+        {
+            var intervalsize = (to - from) / (k - 1);
+            for (var i = 0; i < k; i++)
+                yield return from + (i * intervalsize);
+        }
+
+        public void GeneratePivotGrid(long numsamples, MinMaxNormalizer nrm, int dim=2, double buffer=0.1)
         {
             //todo implement some sort of diagonaization to enumerate with increasing resolution indefinetly
             producer = Task.Run(() =>
             {
-                var resolution = Math.Pow(numsamples, 1.0/dim);
-                for (var i = -buffer; i < 1 + buffer; i += (1.0 + 2 * buffer) / resolution)
-                for (var j = -buffer; j < 1 + buffer; j += (1.0 + 2 * buffer) / resolution)
+                var resolution = (int)Math.Round(Math.Pow(numsamples, 1.0/dim));
+                foreach (var i in LinSpace(nrm.botranges[0] - buffer, nrm.topranges[0] + buffer, resolution))
+                foreach (var j in LinSpace(nrm.botranges[1] - buffer, nrm.topranges[1] + buffer, resolution))
                         switch (dim)
                         {
                             case 2:
@@ -102,7 +113,7 @@ namespace SpatialEnrichmentWrapper
                                 Interlocked.Increment(ref NumPivots);
                                 break;
                             case 3:
-                                for (var k = -buffer; k < 1 + buffer; k += (1.0 + 2 * buffer) / resolution)
+                                foreach (var k in LinSpace(nrm.botranges[2] - buffer, nrm.topranges[2] + buffer, resolution))
                                 {
                                     Pivots.Add(new Coordinate3D(i, j, k));
                                     Interlocked.Increment(ref NumPivots);
@@ -180,17 +191,27 @@ namespace SpatialEnrichmentWrapper
             object locker = new object();
             mHGJumper.optHGT = 1;
             StreamWriter outfile = null;
-            if (trackAll) pValueHistory = new ConcurrentBag<Tuple<double,int,ICoordinate>>();
+            if (trackAll) pValueHistory = new ConcurrentBag<Tuple<double,int, int,ICoordinate>>();
             if (debug != null)
                 outfile = new StreamWriter(debug);
+            var celltracker = new ConcurrentDictionary<BitArray,bool>();
             for (var i = 0; i < parallelization; i++)
                 tsks.Add(Task.Run(() => {
                     foreach (var pivot in GetPivots())
                     {
                         Tuple<double, int, int[]> res = null;
                         var binvec = dataset.OrderBy(c => c.Item1.EuclideanDistance(pivot)).Select(c => c.Item2).ToList();
+                        if (_type == SamplingType.Grid)
+                        {
+                            var asbitarray = new BitArray(binvec.ToArray());
+                            if (!celltracker.TryAdd(asbitarray, true))
+                            {
+                                Console.Write('.');
+                                continue;
+                            }
+                        }
                         res = mHGJumper.minimumHypergeometric(binvec);
-                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, pivot));
+                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, binvec.Take(res.Item2).Count(v => v), pivot));
                         Interlocked.Increment(ref EvaluatedPivots);
                         lock (locker)
                         {
@@ -218,6 +239,7 @@ namespace SpatialEnrichmentWrapper
             
             Task.WaitAll(tsks.ToArray());
             if (debug != null) outfile.Close();
+            celltracker.Clear();
             return new Tuple<ICoordinate, double, int, int, long>(CurrOptLoci, CurrOptPval, CurrOptThresh, smallBinOptThresh, iterfound);
         }
 

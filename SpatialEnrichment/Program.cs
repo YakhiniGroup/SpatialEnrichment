@@ -198,11 +198,12 @@ namespace SpatialEnrichment
              var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
                 new Tuple<ICoordinate, bool>((new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(), sl[3] == "1")).ToList();
             var nrm = new NormaNormalizer();
-            nrm.FitParameters(data.Select(d => d.Item1).ToList());
+            var coords = data.Select(d => d.Item1).ToList();
+            nrm.FitParameters(coords);
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList()).ToList();
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
-            var gridGen = new Gridding(nrm);
+            var gridGen = new Gridding(samplingType, nrm);
             switch (samplingType) 
             {
                 case SamplingType.Sampling:
@@ -210,7 +211,7 @@ namespace SpatialEnrichment
                         normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList());
                     break;
                 case SamplingType.Grid:
-                    gridGen.GeneratePivotGrid(1000000, 3);
+                    gridGen.GeneratePivotGrid(1000000, new MinMaxNormalizer(coords), 3);
                     break;
                 case SamplingType.Pivot:
                     gridGen.ReturnPivots(normalizedData);
@@ -220,11 +221,11 @@ namespace SpatialEnrichment
             var res = gridGen.EvaluateDataset(normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList(), 
                 maxDuration:maxDuration, consoleDbg:false, trackAll:true);
             
+            var qvals = gridGen.GetQvalues().ToList();
             File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
-                new List<string>() { $"{samplingType}: {res.Item2},{res.Item3},{res.Item4},{res.Item5},{res.Item1.ToString(@"0.000")}" });
-            var qvals = gridGen.GetQvalues().Select(Convert.ToString).Take(100).ToList();
+                new List<string>() { $"{samplingType},{res.Item2},{qvals.First().Item1},{res.Item3},{res.Item4},{res.Item5},{res.Item1.ToString(@"0.000")}" });
             if (qvals.Any())
-                File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), qvals);
+                File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), qvals.Select(Convert.ToString));
             Console.WriteLine();
         }
 

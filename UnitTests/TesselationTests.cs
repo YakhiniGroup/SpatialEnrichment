@@ -69,8 +69,8 @@ namespace UnitTests
             StaticConfigParams.filenamesuffix = "0";
             var instance = Program.RandomizeCoordinatesAndSave(50, out var plantedpivot, true);
             var instanceData = instance.Item1.Zip(instance.Item2, (a, b) => new {Coord = a, Label = b}).ToList();
-            var uniformGrid = new Gridding();
-            uniformGrid.GeneratePivotGrid(1000);
+            var uniformGrid = new Gridding(SamplingType.Grid);
+            uniformGrid.GeneratePivotGrid(1000, new MinMaxNormalizer(instance.Item1));
             var grid = uniformGrid.GetPivots().ToList();
             int numcovered = 0;
             double bestP = 1.0;
@@ -95,7 +95,7 @@ namespace UnitTests
                     new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])),
                     sl[3]=="1")).ToList();
             mHGJumper.Initialize(data.Count(v=>v.Item2), data.Count(v => !v.Item2));
-            var empiricalGrid = new Gridding();
+            var empiricalGrid = new Gridding(SamplingType.Sampling);
             empiricalGrid.GenerateEmpricialDensityGrid(long.MaxValue, data);
             var smph = new SemaphoreSlim(50);
             var mHGval = 1.0;
@@ -123,8 +123,8 @@ namespace UnitTests
             StaticConfigParams.filenamesuffix = "0";
             var instance = Program.RandomizeCoordinatesAndSave(50, out var plantedpivot, true);
             var instanceData = instance.Item1.Zip(instance.Item2, (a, b) => new { Coord = a, Label = b }).ToList();
-            var uniformGrid = new Gridding();
-            uniformGrid.GeneratePivotGrid(1000);
+            var uniformGrid = new Gridding(SamplingType.Grid);
+            uniformGrid.GeneratePivotGrid(1000, new MinMaxNormalizer(instance.Item1));
             var grid = uniformGrid.GetPivots().ToList();
             int numcovered = 0;
             double bestP = 1.0;

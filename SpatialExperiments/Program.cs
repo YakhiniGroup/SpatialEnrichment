@@ -57,22 +57,23 @@ namespace SpatialExperiments
             var data = File.ReadAllLines(file).Select(l => l.Split(',')).Select(sl =>
                     new Tuple<ICoordinate, bool>(new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2])), sl[3] == "1")).ToList();
 
-            var nrm = new MinMaxNormalizer(data.Select(d => d.Item1).ToList());
+            var nrm = new NormaNormalizer();
+            nrm.FitParameters(data.Select(d => d.Item1).ToList());
             var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList());
             var normalizedDataset = normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList();
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
 
             Console.WriteLine($"{DateTime.Now}: Sarting Sampling.");
-            var sampling = new Gridding();
+            var sampling = new Gridding(SamplingType.Sampling);
             sampling.StartTimeDebug($"TimeQuality_sampling_{filename}.csv", nrm, 500);
             sampling.GenerateEmpricialDensityGrid(pivots, normalizedDataset);
             sampling.EvaluateDataset(normalizedDataset);
             sampling.StopTimeDebug();
             Console.WriteLine($"{DateTime.Now}: Done with Sampling. Starting Grid.");
-            var gridding = new Gridding();
+            var gridding = new Gridding(SamplingType.Grid);
             gridding.StartTimeDebug($"TimeQuality_grid_{filename}.csv", nrm, 500);
-            gridding.GeneratePivotGrid(pivots, 3);
+            gridding.GeneratePivotGrid(pivots, new MinMaxNormalizer(data.Select(d => d.Item1).ToList()), 3);
             gridding.EvaluateDataset(normalizedDataset);
             gridding.StopTimeDebug();
             Console.WriteLine($"{DateTime.Now}: Done with Gridding.");
@@ -95,16 +96,16 @@ namespace SpatialExperiments
                 var dataset = SpatialEnrichmentWrapper.Helpers.SyntheticDatasets.SinglePlantedEnrichment(2);
                 File.WriteAllLines($"Eval\\dataset.csv", dataset.Select(c => c.Item1.ToString() + "," + c.Item2));
 
-                var samplegrid = new Gridding();
+                var samplegrid = new Gridding(SamplingType.Sampling);
                 string bisectorDebug = null; //$"Eval\\bisectors.csv";
                 string samplingDebug = null; //$"Eval\\sampling.csv"
                 bool isOrdered = false; //true
                 samplegrid.GenerateEmpricialDensityGrid(evalcount, dataset, inorder: isOrdered, debug: bisectorDebug);
                 var sampleres = samplegrid.EvaluateDataset(dataset, debug: samplingDebug);
 
-                var pivotgrid = new Gridding();
+                var pivotgrid = new Gridding(SamplingType.Pivot);
                 string gridDebug = null; //$"Eval\\grid.csv"
-                pivotgrid.GeneratePivotGrid(evalcount);
+                pivotgrid.GeneratePivotGrid(evalcount, new MinMaxNormalizer(dataset.Select(v=>v.Item1).ToList()));
                 var pivotres = pivotgrid.EvaluateDataset(dataset, debug: gridDebug);
                 File.WriteAllText(@"Eval\\best.csv", sampleres.Item1.ToString() + "\n" + pivotres.Item1.ToString());
                 Console.WriteLine($"#{i}:{wins}/{losses} : {sampleres.Item2}, {pivotres.Item2}");
@@ -151,12 +152,12 @@ namespace SpatialExperiments
                         //var se = new EnrichmentWrapper(new ConfigParams() { ActionList = Actions.Search_CellSkipping });
                         //var res = (SpatialmHGResult3D)se.SpatialmHGWrapper3D(dataset.Select(v => new Tuple<double, double, double, bool>(v.Item1.GetDimension(0), v.Item1.GetDimension(1), v.Item1.GetDimension(2), v.Item2)).ToList()).First();
                         //var optres = new Tuple<ICoordinate, double, long>(new Coordinate3D(res.X, res.Y, res.Z), res.pvalue, res.mHGthreshold);
-                        var optgrid = new Gridding();
+                        var optgrid = new Gridding(SamplingType.Sampling);
                         optgrid.GenerateEmpricialDensityGrid((long)(100*numCells), dataset, inorder:true, debug: $"Experiments\\{N}\\Planes.csv");
                         var optres = optgrid.EvaluateDataset(dataset);
                         File.WriteAllText($"Experiments\\{N}\\data_{i}_optres.csv", $"{optres.Item1},{optres.Item2},{optres.Item3}");
 
-                        var beadgrid = new Gridding();
+                        var beadgrid = new Gridding(SamplingType.Pivot);
                         beadgrid.GenerateBeadPivots(dataset);
                         var beadres = beadgrid.EvaluateDataset(dataset);
                         File.WriteAllText($"Experiments\\{N}\\data_{i}_beadres.csv", $"{beadres.Item1},{beadres.Item2},{beadres.Item3}");
@@ -164,13 +165,13 @@ namespace SpatialExperiments
 
                         foreach (var resolution in griddepth)
                         {
-                            var empiricalgrid = new Gridding();
+                            var empiricalgrid = new Gridding(SamplingType.Sampling);
                             empiricalgrid.GenerateEmpricialDensityGrid(resolution, dataset, inorder:false);
                             var empiricalres = empiricalgrid.EvaluateDataset(dataset);
                             File.WriteAllText($"Experiments\\{N}\\data_{i}_optempirical_{resolution}.csv", $"{empiricalres.Item1},{empiricalres.Item2},{empiricalres.Item3}");
                             graphfile.Write($",{empiricalres.Item2},{empiricalres.Item3}");
-                            var uniformgrid = new Gridding();
-                            uniformgrid.GeneratePivotGrid(resolution, 3);
+                            var uniformgrid = new Gridding(SamplingType.Grid);
+                            uniformgrid.GeneratePivotGrid(resolution, new MinMaxNormalizer(dataset.Select(v=>v.Item1).ToList()), 3);
                             var unfiromres = uniformgrid.EvaluateDataset(dataset);
                             File.WriteAllText($"Experiments\\{N}\\data_{i}_optunifrom_{resolution}.csv", $"{unfiromres.Item1},{unfiromres.Item2},{unfiromres.Item3}");
                             graphfile.Write($",{unfiromres.Item2},{unfiromres.Item3}");

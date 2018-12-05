@@ -171,8 +171,8 @@ namespace SpatialEnrichment
                     #region sampling strategies
                     mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
                     Console.Write($"Uniform grid strategy @{Config.Cellcount} Pivots... ");
-                    var uniformGridFactory = new Gridding();
-                    uniformGridFactory.GeneratePivotGrid(Convert.ToInt64(Config.Cellcount));
+                    var uniformGridFactory = new Gridding(SamplingType.Grid);
+                    uniformGridFactory.GeneratePivotGrid(Convert.ToInt64(Config.Cellcount), new MinMaxNormalizer(coordinates));
                     var uniformGridPivotlst = uniformGridFactory.GetPivots().ToList();
                     var uniformGridPivot = uniformGridPivotlst.AsParallel()
                         .Select(p => new { Pivot = p, Enrichment = -Math.Log10(EnrichmentAtPivot(instanceDataCoords, p)) })
@@ -180,7 +180,7 @@ namespace SpatialEnrichment
                     Console.WriteLine($"p={uniformGridPivot:e}");
                     Console.Write($"Empirical grid strategy @{Config.Cellcount} Pivots... ");
                     mHGJumper.optHGT = Config.SIGNIFICANCE_THRESHOLD;
-                    var empiricalGridFactory = new Gridding();
+                    var empiricalGridFactory = new Gridding(SamplingType.Sampling);
                     empiricalGridFactory.GenerateEmpricialDensityGrid(Convert.ToInt64(Config.Cellcount), instanceDataCoords);
                     var empiricalGridPivotlst = empiricalGridFactory.GetPivots().ToList();
                     var empiricalGridPivot = empiricalGridPivotlst.AsParallel()

@@ -59,7 +59,8 @@ namespace SpatialEnrichmentWrapper
         public List<ISpatialmHGResult> SpatialmHGWrapper3D(List<Tuple<double, double, double, bool>> input, bool runViaAzure = false)
         {
             var coordinates = input.Select(c => (ICoordinate)new Coordinate3D(c.Item1, c.Item2, c.Item3)).ToList();
-            MinMaxNormalizer nrm = new MinMaxNormalizer(coordinates);
+            INormalizer nrm = new NormaNormalizer();
+            nrm.FitParameters(coordinates);
             var normcoords = nrm.Normalize(coordinates).Select(c => (Coordinate3D)c).ToList();
             var labels = input.Select(c => c.Item4).ToList();
             InitializeMHG(labels);
@@ -81,13 +82,20 @@ namespace SpatialEnrichmentWrapper
             if ((Config.ActionList & Actions.Search_EmpricalSampling) != 0 || (Config.ActionList & Actions.Search_UniformSampling) != 0)
             {
                 var problem = normcoords.Zip(labels, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList();
-                var gr = new Gridding();
+                Gridding gr = null;
                 // var problemSize = MathExtensions.Binomial(numPlanes, 3) + MathExtensions.Binomial(numPlanes, 2) + numPlanes + 1;
                 //(long)Math.Min(problemSize, 100000)
-                if((Config.ActionList & Actions.Search_EmpricalSampling) != 0)
+                if ((Config.ActionList & Actions.Search_EmpricalSampling) != 0)
+                {
+                    gr = new Gridding(SamplingType.Sampling);
                     gr.GenerateEmpricialDensityGrid(1000000, problem);
-                if((Config.ActionList & Actions.Search_UniformSampling) != 0)
-                    gr.GeneratePivotGrid(1000000,3);
+                }
+
+                if ((Config.ActionList & Actions.Search_UniformSampling) != 0)
+                {
+                    gr = new Gridding(SamplingType.Pivot);
+                    gr.GeneratePivotGrid(1000000, new MinMaxNormalizer(coordinates), 3);
+                }
                 var results = new ConcurrentPriorityQueue<double, ISpatialmHGResult>();
                 Parallel.ForEach(gr.GetPivots(), pivot =>
                 {
@@ -219,7 +227,7 @@ namespace SpatialEnrichmentWrapper
             if ((Config.ActionList & Actions.Search_EmpricalSampling) != 0)
             {
                 var problem = coords.Zip(labels, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList();
-                var gr = new Gridding();
+                var gr = new Gridding(SamplingType.Sampling);
                 var problemSize = MathExtensions.Binomial(Line.Count, 2) + Line.Count + 1;
                 gr.GenerateEmpricialDensityGrid((long)Math.Min(problemSize, 100000), problem);
                 var results = new ConcurrentPriorityQueue<double, SpatialmHGResult>();
@@ -297,7 +305,7 @@ namespace SpatialEnrichmentWrapper
             Generics.SaveToCSV(toSave, filename, true);
         }
 
-        public void Denormalize(MinMaxNormalizer nrm)
+        public void Denormalize(INormalizer nrm)
         {
             var nc = nrm.DeNormalize(new Coordinate(X, Y));
             X = nc.GetDimension(0);
@@ -354,7 +362,7 @@ namespace SpatialEnrichmentWrapper
             Generics.SaveToCSV(toSave, filename, true);
         }
 
-        public void Denormalize(MinMaxNormalizer nrm)
+        public void Denormalize(INormalizer nrm)
         {
             var nc = nrm.DeNormalize(new Coordinate3D(X, Y, Z));
             X = nc.GetDimension(0);
@@ -373,7 +381,7 @@ namespace SpatialEnrichmentWrapper
     public interface ISpatialmHGResult
     {
         void SaveToCSV(string csv);
-        void Denormalize(MinMaxNormalizer nrm);
+        void Denormalize(INormalizer nrm);
     }
 
     

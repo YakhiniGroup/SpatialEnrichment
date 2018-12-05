@@ -95,8 +95,11 @@ namespace SpatialEnrichment.Helpers
                 {
                     var pval = 1.0 - (pathCounting(score, out var pMat1) / TotalPaths);
                     ScoreMap.AddOrUpdate(score, pval, (a, b) => pval);
-                    Console.Write("\r\r\r\r\r" + Interlocked.Increment(ref numMapped));
+                    var iter = Interlocked.Increment(ref numMapped);
+                    if (iter % 1000==0)
+                        Console.Write("\r\r\r\r\r" + iter);
                 });
+                Console.WriteLine();
             }
             else
                 Console.WriteLine("mHG Caching skipped, too many values.");
