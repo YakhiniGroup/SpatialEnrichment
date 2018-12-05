@@ -41,7 +41,7 @@ namespace SpatialEnrichmentWrapper
     public static class StaticConfigParams
     {
         public static bool WriteToCSV = true; //writes cell to files
-        public const double TOLERANCE = 1E-8;
+        public const double TOLERANCE = 1E-10;
         public const double CONST_PROBLEM_SCALE = 100;
         public const double CONST_NEGATIVELABELRATE = 0.7;
         public const double ExploreExploitRatio = 0.9;

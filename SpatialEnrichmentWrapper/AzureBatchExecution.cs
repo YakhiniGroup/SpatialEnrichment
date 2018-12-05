@@ -20,6 +20,7 @@ namespace SpatialEnrichmentWrapper
         public static string BatchAccountName = "phdresearch";
         public static string BatchAccountKey = "dv5Q6DV91fAsROpZwSETXy1Crclx0tT2aEQ/YBh/XqoZ3BS3j0k+imdxpMUd8PFUqDExsQZPlf++2GOifyD6hA==";
         public static string BatchAccountUrl = "https://phdresearch.westus2.batch.azure.com";
+        public static int MaxDedicatedCores, MaxLowPrioCores;
 
         // Storage account credentials
         public static string StorageAccountName = "phdstorageacc";
@@ -40,26 +41,35 @@ namespace SpatialEnrichmentWrapper
             {
                 var jsoncache = JsonConvert.DeserializeObject<Dictionary<string,string>>(File.ReadAllText(cachefile));
                 JobIdx = int.Parse(jsoncache["JobIdx"]);
-                BatchAccountName = jsoncache["BatchAccountName"];
-                BatchAccountKey = jsoncache["BatchAccountKey"];
-                BatchAccountUrl = jsoncache["BatchAccountUrl"];
-                StorageAccountName = jsoncache["StorageAccountName"];
-                StorageAccountKey = jsoncache["StorageAccountKey"];
+                LoadAzureConfig(jsoncache);
             }
             else
             {
-                JobIdx = new Random().Next();
+                JobIdx = new Random(Environment.TickCount + Process.GetCurrentProcess().Id).Next();
                 var cachedata = new Dictionary<string, string>() {
                     { "JobIdx", JobIdx.ToString() },
                     { "BatchAccountName", BatchAccountName},
                     { "BatchAccountKey",BatchAccountKey},
                     {"BatchAccountUrl",BatchAccountUrl},
                     {"StorageAccountName", StorageAccountName},
-                    {"StorageAccountKey",StorageAccountKey}
+                    {"StorageAccountKey",StorageAccountKey},
+                    {"MaxDedicatedCores", MaxDedicatedCores.ToString() },
+                    { "MaxLowPrioCores", MaxLowPrioCores.ToString() }
                 };
                 var jsonstr = JsonConvert.SerializeObject(cachedata, Formatting.Indented);
                 File.WriteAllText(cachefile, jsonstr);
             }
+        }
+
+        public static void LoadAzureConfig(Dictionary<string, string> jsoncache)
+        {
+            BatchAccountName = jsoncache["BatchAccountName"];
+            BatchAccountKey = jsoncache["BatchAccountKey"];
+            BatchAccountUrl = jsoncache["BatchAccountUrl"];
+            StorageAccountName = jsoncache["StorageAccountName"];
+            StorageAccountKey = jsoncache["StorageAccountKey"];
+            MaxDedicatedCores = int.Parse(jsoncache["MaxDedicatedCores"]);
+            MaxLowPrioCores = int.Parse(jsoncache["MaxLowPrioCores"]);
         }
 
         /// <summary>
@@ -155,7 +165,7 @@ namespace SpatialEnrichmentWrapper
                 await CreatePoolIfNotExistAsync(batchClient, PoolId, applicationFiles);
 
                 // Create the job that will run the tasks.
-                var jobcreated = await CreateJobAsync(batchClient, JobId, PoolId);
+              var jobcreated = await CreateJobAsync(batchClient, JobId, PoolId);
 
                 // Add the tasks to the job. We need to supply a container shared access signature for the
                 // tasks so that they can upload their output to Azure Storage.
@@ -281,8 +291,7 @@ namespace SpatialEnrichmentWrapper
         /// <returns>A <see cref="Microsoft.Azure.Batch.ResourceFile"/> instance representing the file within blob storage.</returns>
         private static async Task<ResourceFile> UploadFileToContainerAsync(CloudBlobClient blobClient, string containerName, string filePath)
         {
-            Console.WriteLine("Uploading file {0} to container [{1}]...", filePath, containerName);
-
+            
             string blobName = Path.GetFileName(filePath);
 
             CloudBlobContainer container = blobClient.GetContainerReference(containerName);
@@ -291,11 +300,18 @@ namespace SpatialEnrichmentWrapper
             if (blobData.Exists())
             {
                 blobData.FetchAttributes();
-                if (blobData.Properties.Length == new FileInfo(filePath).Length)
+                var newver = new FileInfo(filePath);
+                if (blobData.Properties.LastModified >= newver.LastWriteTime)
+                {
                     exists = true;
+                    Console.WriteLine("Skipping file {0} exists in container [{1}]...", filePath, containerName);
+                }
             }
             if (!exists)
+            {
+                Console.WriteLine("Uploading file {0} to container [{1}]...", filePath, containerName);
                 await blobData.UploadFromFileAsync(filePath);
+            }
 
             // Set the expiry time and permissions for the blob shared access signature. In this case, no start time is specified,
             // so the shared access signature becomes valid immediately
@@ -337,9 +353,9 @@ namespace SpatialEnrichmentWrapper
                     virtualMachineSize: "Standard_A8_v2",                                                // 8-core, 56 GB memory, 2040 GB disk
                     cloudServiceConfiguration: new CloudServiceConfiguration(osFamily: "5"));   // Windows Server
                 pool.AutoScaleEnabled = true;
-                pool.AutoScaleFormula = @"startingNumberOfVMs = 0;
-maxNumberofDedicatedVMs = 2;
-maxNumberofLowPrioVMs = 10;
+                pool.AutoScaleFormula = $@"startingNumberOfVMs = 0;
+maxNumberofDedicatedVMs = {MaxDedicatedCores};
+maxNumberofLowPrioVMs = {MaxLowPrioCores};
 pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
 pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
 $TargetDedicatedNodes=min(maxNumberofDedicatedVMs, pendingTaskSamples / 2);

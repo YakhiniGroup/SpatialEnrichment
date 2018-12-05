@@ -15,11 +15,22 @@ namespace AzureBatchProcess
         static void Main(string[] args)
         {
             var filelist = Directory.EnumerateFiles(args[0], "*.csv").Where(f=>!File.Exists(Path.ChangeExtension(f,".res"))).ToList();
-            AzureBatchExecution.BatchAccountName = ConfigurationManager.AppSettings["BatchAccountName"];
-            AzureBatchExecution.BatchAccountKey = ConfigurationManager.AppSettings["BatchAccountKey"];
-            AzureBatchExecution.BatchAccountUrl = ConfigurationManager.AppSettings["BatchAccountUrl"];
-            Console.WriteLine($"Using Batch Account: {AzureBatchExecution.BatchAccountUrl}");
+            Dictionary<string, string> AzureConfigSource = null;
+            if (args.Length > 1 && File.Exists(args[1]) && Path.GetExtension(args[1]) == ".config")
+            {
+                AzureConfigSource = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(args[1]));
+                Console.WriteLine($"Using azure configuration file {args[1]}");
+            }
+            else
+            {
+                AzureConfigSource = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText("account1.config"));
+                Console.WriteLine($"Using azure configuration file account1.config");
+            }
+            AzureBatchExecution.LoadAzureConfig(AzureConfigSource);
+
             var job = new AzureBatchExecution(args[0]);
+            Console.WriteLine($"Using Batch Account: {AzureBatchExecution.BatchAccountUrl}");
+            Console.WriteLine($"Using Storage Account: {AzureBatchExecution.StorageAccountName}");
             var task = job.MainAsync(filelist);
             task.Wait();
             Console.WriteLine("Done.");

@@ -86,7 +86,7 @@ namespace SpatialEnrichmentWrapper
         {
             var qvals = pValueHistory.Select(v=>v.Item1).ToList().FDRCorrection();
             var res = qvals.Zip(pValueHistory, (a, b) => Tuple.Create(a, b.Item2, b.Item3, b.Item4))
-                .OrderBy(v => v.Item1).TakeWhile((v,idx) => (v.Item1 < qthreshold || idx < 10) && idx < 100).ToList();
+                .OrderBy(v => v.Item1).ThenByDescending(v=>v.Item3/v.Item2).TakeWhile((v,idx) => (v.Item1 < qthreshold || idx < 10) && idx < 100).ToList();
             return res;
         }
 
@@ -211,16 +211,19 @@ namespace SpatialEnrichmentWrapper
                             }
                         }
                         res = mHGJumper.minimumHypergeometric(binvec);
-                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, binvec.Take(res.Item2).Count(v => v), pivot));
+                        var smallB = binvec.Take(res.Item2).Count(v => v);
+                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, smallB, pivot));
                         Interlocked.Increment(ref EvaluatedPivots);
                         lock (locker)
                         {
-                            if (res.Item1 < CurrOptPval)
+                            if (res.Item1 < CurrOptPval ||
+                                (Math.Abs(res.Item1 - CurrOptPval) < StaticConfigParams.TOLERANCE &&
+                                 smallB / res.Item2 > smallBinOptThresh / CurrOptThresh))
                             {
                                 CurrOptLoci = nrm != null ? nrm.DeNormalize(pivot) : pivot;
                                 CurrOptPval = res.Item1;
                                 CurrOptThresh = res.Item2;
-                                smallBinOptThresh = binvec.Take(CurrOptThresh).Count(v=>v);
+                                smallBinOptThresh = smallB;
                                 iterfound = EvaluatedPivots;
                             }
                         }
@@ -232,7 +235,6 @@ namespace SpatialEnrichmentWrapper
                         {
                             Console.Write($"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\rPivot #(computed/observed): {EvaluatedPivots:N0}/" +
                            $"{NumPivots:N0}. Curr mHG={CurrOptPval}. Thresh={CurrOptThresh}. Bonferroni={CurrOptPval * EvaluatedPivots}. Position:{CurrOptLoci.ToString(@"0.00")}");
-                            //Console.SetCursorPosition(left, top);
                         }
                     }
                 }));
