@@ -22,7 +22,7 @@ namespace SpatialEnrichment
             var options = new CommandlineParameters();
             var isValid = Parser.Default.ParseArgumentsStrict(args, options);
             ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Pivot);
-            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Grid);
+            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.RecursiveGrid);
             ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Sampling);
             if (!string.IsNullOrEmpty(options.SaasUrl))
             {
@@ -212,6 +212,9 @@ namespace SpatialEnrichment
                     break;
                 case SamplingType.Grid:
                     gridGen.GeneratePivotGrid(1000000, new MinMaxNormalizer(coords), 3);
+                    break;
+                case SamplingType.RecursiveGrid:
+                    gridGen.GenerateRecrusivePivotGrid(normalizedData.Zip(data, (a, b) => new Tuple<ICoordinate, bool>(a, b.Item2)).ToList());
                     break;
                 case SamplingType.Pivot:
                     gridGen.ReturnPivots(normalizedData);

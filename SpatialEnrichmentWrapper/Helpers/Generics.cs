@@ -201,7 +201,7 @@ namespace SpatialEnrichment.Helpers
         private int dim;
         public double[] botranges;
         public double[] topranges;
-        private double[] denom => topranges.Zip(botranges, (a, b) => a - b).ToArray();
+        public double[] denom => topranges.Zip(botranges, (a, b) => a - b).ToArray();
 
         public MinMaxNormalizer(List<ICoordinate> coords)
         {

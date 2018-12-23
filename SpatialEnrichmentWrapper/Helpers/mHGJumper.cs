@@ -86,7 +86,8 @@ namespace SpatialEnrichment.Helpers
                     scoreToPval.Add(runsum);
                 }
             }
-            TotalPaths = pathCounting(-0.1, out var pMat); //Todo: should be N choose B
+            TotalPaths = Math.Min(Double.MaxValue, pathCounting(-0.1, out var pMat)); //Todo: should be N choose B
+            var tmp=Accord.Math.Special.Binomial(N, ones);
             if (scoreToPval.Count < 100000)
             {
                 Console.WriteLine("Mapping {0} mHG scores to pvalue.", scoreToPval.Count);

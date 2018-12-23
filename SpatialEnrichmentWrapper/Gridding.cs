@@ -125,53 +125,32 @@ namespace SpatialEnrichmentWrapper
             });
         }
 
-        public void GenerateRecrusivePivotGrid(long numsamples, int dim = 2, double buffer = 0.1)
+        public void GenerateRecrusivePivotGrid(List<Tuple<ICoordinate,bool>> data, double buffer = 0.1)
         {
-            //Sample 4 points in corners. 
-            //Split to 4 quadrents and repeat. 
-            //Bonus: Stop if quadrent yields the same data arrangement.
-            //Stack contains corner pairs that define the quadrent ranges.
-            var stack = new Stack<Tuple<ICoordinate, ICoordinate>>();
-            //Need to exhaust cells in same depth in recursion before proceeding
-            //for depth i, need to compare sorting for all pivots under same parent
+            var ranges = new MinMaxNormalizer(data.Select(v => v.Item1).ToList());
 
-            //todo implement some sort of diagonaization to enumerate with increasing resolution indefinetly
             producer = Task.Run(() =>
             {
-                //Introduce bounding box
-                switch (dim)
+                var stack = new ConcurrentPriorityQueue<int, SpaceCube>();
+                stack.Enqueue(0,
+                    new SpaceCube(ranges.botranges[0] - buffer * ranges.denom[0],
+                                  ranges.topranges[0] + buffer * ranges.denom[0],
+                                  ranges.botranges[1] - buffer * ranges.denom[1],
+                                  ranges.topranges[1] + buffer * ranges.denom[1],
+                                  ranges.botranges[2] - buffer * ranges.denom[2],
+                                  ranges.topranges[2] + buffer * ranges.denom[2])
+                    );
+
+                while (stack.TryDequeue(out var curr))
                 {
-                    case 2:
-                        stack.Push(Tuple.Create((ICoordinate)new Coordinate(-buffer, -buffer), (ICoordinate)new Coordinate(1 + buffer, 1 + buffer)));
-                        break;
-                    case 3:
-                        stack.Push(Tuple.Create((ICoordinate)new Coordinate3D(-buffer, -buffer, -buffer), (ICoordinate)new Coordinate3D(1 + buffer, 1 + buffer, 1 + buffer)));
-                        break;
-                }
-                while (NumPivots < numsamples)
-                {
-                    var quadrent = stack.Pop();
-                    Pivots.Add(quadrent.Item1);
-                    Pivots.Add(quadrent.Item2);
-                    /*
-                    switch (dim)
+                    Pivots.Add(curr.Value.GetMidpoint);
+                    if (curr.Value.AllCornersInSameCell(data)) continue;
+                    foreach (var sub in curr.Value.GetSubCubes())
                     {
-                        case 2:
-                            var midpoint = (ICoordinate)new Coordinate(0.5 * (quadrent.Item1.GetDimension(0) + quadrent.Item2.GetDimension(0)), 0.5 * (quadrent.Item1.GetDimension(1) + quadrent.Item2.GetDimension(1)));
-                            var midpointtop = (ICoordinate)new Coordinate(quadrent.Item1.GetDimension(0), 0.5 * (quadrent.Item1.GetDimension(1) + quadrent.Item2.GetDimension(1)));
-                            var midpointbot = (ICoordinate)new Coordinate(0.5 * (quadrent.Item1.GetDimension(0) + quadrent.Item2.GetDimension(0)), quadrent.Item2.GetDimension(1));
-                            stack.Push(Tuple.Create(quadrent.Item1, midpoint));
-                            stack.Push(Tuple.Create(quadrent.Item1, quadrent.Item2));
-
-                            break;
-                        case 3:
-
-                            break;
+                        stack.Enqueue(curr.Key+1, sub);
                     }
-
-                    stack.Push();
-                    */
                 }
+                Pivots.CompleteAdding();
             });
         }
 

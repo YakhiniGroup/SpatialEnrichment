@@ -110,6 +110,7 @@
     <Compile Include="AzureBatchExecution.cs" />
     <Compile Include="CommandlineParameters.cs" />
     <Compile Include="CoordMesh.cs" />
+    <Compile Include="dynamicKDTreeGrid.cs" />
     <Compile Include="EnrichmentWrapper.cs" />
     <Compile Include="Geometry.cs" />
     <Compile Include="Geometry3D.cs" />

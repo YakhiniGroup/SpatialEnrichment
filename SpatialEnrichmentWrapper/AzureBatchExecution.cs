@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Batch;
 using Microsoft.Azure.Batch.Auth;
@@ -33,6 +34,7 @@ namespace SpatialEnrichmentWrapper
         private int JobIdx;
         public string JobId => $"SmHG-{JobIdx}";
         private string cachefile;
+        private int logposLeft, logposTop;
         public AzureBatchExecution(string databasepath)
         {
             InputPath = databasepath;
@@ -455,6 +457,25 @@ $TargetLowPriorityNodes=min(maxNumberofLowPrioVMs, pendingTaskSamples / 2)";
             return tasks;
         }
 
+
+        private Task PollStatus(BatchClient batchClient, string jobId, CancellationToken token)
+        {
+            return Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    var taskCounts = await batchClient.JobOperations.GetJobTaskCountsAsync(jobId);
+                    Console.SetCursorPosition(logposLeft, logposTop);
+                    Console.WriteLine("Task count in active state: {0}", taskCounts.Active);
+                    Console.WriteLine("Task count in preparing or running state: {0}", taskCounts.Running);
+                    Console.WriteLine("Task count in completed state: {0}", taskCounts.Completed);
+                    Console.WriteLine("Succeeded task count: {0}", taskCounts.Succeeded);
+                    Console.WriteLine("Failed task count: {0}", taskCounts.Failed);
+                    Thread.Sleep(30000);
+                }
+            }, token);
+        }
+
         /// <summary>
         /// Monitors the specified tasks for completion and returns a value indicating whether all tasks completed successfully
         /// within the timeout period.
@@ -480,25 +501,39 @@ $TargetLowPriorityNodes=min(maxNumberofLowPrioVMs, pendingTaskSamples / 2)";
             // We use a TaskStateMonitor to monitor the state of our tasks. In this case, we will wait for all tasks to
             // reach the Completed state.
             TaskStateMonitor taskStateMonitor = batchClient.Utilities.CreateTaskStateMonitor();
+            CancellationTokenSource source = new CancellationTokenSource();
+            CancellationToken token = source.Token;
+            logposLeft = Console.CursorLeft;
+            logposTop = Console.CursorTop;
+            var pollstatus = PollStatus(batchClient, jobId, token);
             bool done=false;
             while (!done)
                 try
                 {
                     await taskStateMonitor.WhenAll(tasks, TaskState.Completed, timeout);
                     done = true;
+                    source.Cancel();
                 }
                 catch (TimeoutException)
                 {
                     await batchClient.JobOperations.TerminateJobAsync(jobId, failureMessage);
+                    Console.SetCursorPosition(logposLeft, logposTop);
                     Console.WriteLine(failureMessage);
+                    logposLeft = Console.CursorLeft;
+                    logposTop = Console.CursorTop;
                     return false;
                 }
                 catch (BatchException be)
                 {
-                    if (be.RequestInformation?.BatchError != null && be.RequestInformation.BatchError.Code == BatchErrorCodeStrings.PoolExists)
+                    if (be.RequestInformation?.BatchError != null &&
+                        be.RequestInformation.BatchError.Code == BatchErrorCodeStrings.PoolExists)
+                    {
+                        Console.SetCursorPosition(logposLeft, logposTop);
                         Console.WriteLine($"Error: {be.RequestInformation?.BatchError?.Code?.ToString()}");
+                    }
                 }
 
+            source.Cancel();
             await batchClient.JobOperations.TerminateJobAsync(jobId, successMessage);
 
             // All tasks have reached the "Completed" state, however, this does not guarantee all tasks completed successfully.

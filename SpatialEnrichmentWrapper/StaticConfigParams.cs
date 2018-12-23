@@ -35,7 +35,8 @@ namespace SpatialEnrichmentWrapper
     {
         Pivot,
         Sampling,
-        Grid
+        Grid,
+        RecursiveGrid
     }
 
     public static class StaticConfigParams
