@@ -24,9 +24,9 @@ namespace UnitTests
             for (var i = 0; i < 10; i++)
             {
                 var instance = Program.RandomizeCoordinatesAndSave(n, out var pivotcoord, false);
-                var bestPerIter_sampling = Program.ComputeSamplingGrid(instance, TimeSpan.FromMinutes(2.0), SamplingType.Sampling);
-                mHGJumper.optHGT = 1.1;
                 var bestPerIter_grid = Program.ComputeSamplingGrid(instance, TimeSpan.FromMinutes(2.0), SamplingType.RecursiveGrid);
+                mHGJumper.optHGT = 1.1;
+                var bestPerIter_sampling = Program.ComputeSamplingGrid(instance, TimeSpan.FromMinutes(2.0), SamplingType.Sampling);
                 mHGJumper.optHGT = 1.1;
                 File.WriteAllLines($"synthetic_contest_{n}_{i}_grid.csv", bestPerIter_grid.Select(v=>v.Item1+","+v.Item2));
                 File.WriteAllLines($"synthetic_contest_{n}_{i}_sampling.csv", bestPerIter_sampling.Select(v => v.Item1 + "," + v.Item2));

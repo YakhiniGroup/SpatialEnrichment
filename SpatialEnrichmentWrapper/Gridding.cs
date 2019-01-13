@@ -185,7 +185,7 @@ namespace SpatialEnrichmentWrapper
                             Console.WriteLine("bah");
                         }
                     }));
-                    while(candidateCubes.IsEmpty && QueueConsumers.Count > 0 && QueueConsumers.Any(t=>t.Status == TaskStatus.Running))
+                    while(candidateCubes.IsEmpty && QueueConsumers.Count > 0 && QueueConsumers.All(t=>t.Status != TaskStatus.RanToCompletion))
                         Thread.Sleep(200);
                     if (tokenSource.Token.IsCancellationRequested)
                         return;
