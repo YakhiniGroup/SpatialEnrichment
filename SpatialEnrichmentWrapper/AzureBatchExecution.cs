@@ -27,6 +27,8 @@ namespace SpatialEnrichmentWrapper
         public static string StorageAccountName = "phdstorageacc";
         public static string StorageAccountKey = "bGXlDXtIkGo+2NTpQMtAHK/tmsp8pZ9UVObqkd8u/GBuFzceDCEEWaQiN1dAcpMxUgBfkB3+iHOyqrSboUp9jg==";
 
+        public static double SubtaskDuration = 5.0;
+
         private const string PoolId = "SpatialEnrichmentPool";
         
         public static TimeSpan ExpectedDuration = TimeSpan.FromHours(24.0);
@@ -443,7 +445,7 @@ $TargetLowPriorityNodes=min(maxNumberofLowPrioVMs, pendingTaskSamples / 2)";
             foreach (ResourceFile inputFile in inputFiles)
             {
                 var taskId = "SmHGTask" + inputFiles.IndexOf(inputFile);
-                var taskCommandLine = $"cmd /c %AZ_BATCH_NODE_SHARED_DIR%\\SpatialEnrichment.exe -i {inputFile.FilePath} -b -u \"{outputContainerSasUrl}\"";
+                var taskCommandLine = $"cmd /c %AZ_BATCH_NODE_SHARED_DIR%\\SpatialEnrichment.exe -i {inputFile.FilePath} -d {SubtaskDuration} -b -u \"{outputContainerSasUrl}\"";
 
                 CloudTask task = new CloudTask(taskId, taskCommandLine);
                 task.ResourceFiles = new List<ResourceFile> { inputFile };

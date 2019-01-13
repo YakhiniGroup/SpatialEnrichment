@@ -224,6 +224,12 @@ namespace SpatialEnrichmentWrapper
             return coord - uNormal.Scale((coord - MidPoint).DotProduct(uNormal));
         }
 
+        public bool GetSignOfCoord(Coordinate3D coord)
+        {
+            var uNormal = GetUnitNormalVector();
+            return (coord - MidPoint).DotProduct(uNormal)>0;
+        }
+
         public List<Coordinate> ProjectOntoAndRotate(List<Coordinate3D> coords, out PrincipalComponentAnalysis pca)
         {
             //Project all coordinates to plane

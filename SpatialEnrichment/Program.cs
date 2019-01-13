@@ -21,16 +21,22 @@ namespace SpatialEnrichment
         {
             var options = new CommandlineParameters();
             var isValid = Parser.Default.ParseArgumentsStrict(args, options);
-            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Pivot);
-            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.RecursiveGrid);
-            ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Sampling);
+            if (!string.IsNullOrEmpty(options.GenomeStructure))
+                GenomicOrderbased(options.InputFile, options.GenomeStructure.Split(';').Select(int.Parse).ToList());
+            else
+            {
+                ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Pivot);
+                ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.RecursiveGrid);
+                ComputeSamplingGrid(options.InputFile, TimeSpan.FromMinutes(options.Duration), SamplingType.Sampling);
+            }
+
             if (!string.IsNullOrEmpty(options.SaasUrl))
             {
                 foreach(var resfile in Directory.EnumerateFiles(new FileInfo(options.InputFile).Directory.FullName,"*.res"))
                     AzureBatchExecution.UploadFileToContainer(resfile, options.SaasUrl);
             }
             return;
-            
+            #region deprecated
             //args = new[] {@"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Datasets\usStatesBordersData.csv"};
             //args = new[] { @"c:\Users\shaybe\Dropbox\Thesis-PHd\SpatialEnrichment\Caulobacter\transferases\acetyltransferase.csv" };
             var numcoords = 15;
@@ -102,7 +108,7 @@ namespace SpatialEnrichment
                         throw new ArgumentException("Input file not found!");
                 else
                 {
-                    var res = RandomizeCoordinatesAndSave(numcoords, out var pivot);
+                    var res = RandomizeCoordinatesAndSave(numcoords, out ICoordinate pivot);
                     coordinates = res.Item1;
                     labels = res.Item2;
                 }
@@ -189,18 +195,45 @@ namespace SpatialEnrichment
                 Console.WriteLine("Total elapsed time: {0:g}.\nPress any key to continue.", Config.timer.Elapsed);
                 Console.ReadKey();
             }
+            #endregion
+        }
+
+        public static ConcurrentBag<Tuple<double,long>> ComputeSamplingGrid(Tuple<List<ICoordinate>,List<bool>> data, TimeSpan maxDuration, SamplingType samplingType)
+        {
+            var nrm = new NormaNormalizer();
+            nrm.FitParameters(data.Item1);
+            var normalizedData = nrm.Normalize(data.Item1).ToList();
+            mHGJumper.Initialize(data.Item2.Count(v => v), data.Item2.Count(v => !v));
+            mHGJumper.optHGT = 1;
+            var gridGen = new Gridding(samplingType, nrm) { TrackProgress = true };
+            switch (samplingType)
+            {
+                case SamplingType.Sampling:
+                    gridGen.GenerateEmpricialDensityGrid(long.MaxValue,
+                        normalizedData.Zip(data.Item2, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList());
+                    break;
+                case SamplingType.Grid:
+                    gridGen.GeneratePivotGrid(1000000, new MinMaxNormalizer(data.Item1), 3);
+                    break;
+                case SamplingType.RecursiveGrid:
+                    gridGen.GenerateRecrusivePivotGrid(normalizedData.Zip(data.Item2, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList());
+                    break;
+                case SamplingType.Pivot:
+                    gridGen.ReturnPivots(normalizedData);
+                    break;
+            }
+
+            var res = gridGen.EvaluateDataset(normalizedData.Zip(data.Item2, (a, b) => new Tuple<ICoordinate, bool>(a, b)).ToList(),
+                maxDuration: maxDuration, consoleDbg: false, trackAll: false);
+            
+            return gridGen.ProgressList;
         }
 
         public static void ComputeSamplingGrid(string filename, TimeSpan maxDuration, SamplingType samplingType)
         {
             Console.WriteLine(samplingType);
             var sw = Stopwatch.StartNew();
-             var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
-                new Tuple<ICoordinate, bool>((new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(), sl[3] == "1")).ToList();
-            var nrm = new NormaNormalizer();
-            var coords = data.Select(d => d.Item1).ToList();
-            nrm.FitParameters(coords);
-            var normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList()).ToList();
+            var data = GetNormalizedDataset(filename, out var nrm, out var coords, out var normalizedData);
             mHGJumper.Initialize(data.Count(v => v.Item2), data.Count(v => !v.Item2));
             mHGJumper.optHGT = 1;
             var gridGen = new Gridding(samplingType, nrm);
@@ -230,6 +263,85 @@ namespace SpatialEnrichment
             if (qvals.Any())
                 File.WriteAllLines(Path.ChangeExtension(filename, $".{samplingType}.res"), qvals.Select(Convert.ToString));
             Console.WriteLine();
+        }
+
+        private static List<Tuple<ICoordinate, bool>> GetNormalizedDataset(string filename, out NormaNormalizer nrm, out List<ICoordinate> coords,
+            out List<ICoordinate> normalizedData)
+        {
+            var data = File.ReadAllLines(filename).Select(l => l.Split(',')).Select(sl =>
+                    new Tuple<ICoordinate, bool>(
+                        (new Coordinate3D(double.Parse(sl[0]), double.Parse(sl[1]), double.Parse(sl[2]))).Jitter(),
+                        sl[3] == "1"))
+                .ToList();
+            nrm = new NormaNormalizer();
+            coords = data.Select(d => d.Item1).ToList();
+            nrm.FitParameters(coords);
+            normalizedData = nrm.Normalize(data.Select(d => d.Item1).ToList()).ToList();
+            return data;
+        }
+
+
+        public static void GenomicOrderbased(string filename, List<int> GenomeStructure)
+        {
+            var data = GetNormalizedDataset(filename, out var nrm, out var coords, out var normalizedData);
+            if (data.Count < GenomeStructure.Sum()) throw new ArgumentException("Supplied genome structure does not match read dataset!");
+            var dataenum = data.GetEnumerator();
+            var count = 0;
+            var chrId = 0;
+            var ChrStructure = new List<Tuple<ICoordinate,bool>>[GenomeStructure.Count];
+            ChrStructure[chrId] = new List<Tuple<ICoordinate, bool>>();
+            while (dataenum.MoveNext())
+            {
+                if (++count > GenomeStructure[chrId])
+                {
+                    count = 1;
+                    chrId++;
+                    ChrStructure[chrId] = new List<Tuple<ICoordinate, bool>>();
+                }
+                ChrStructure[chrId].Add(dataenum.Current);
+            }
+            var locker = new object();
+            var largeBlist = ChrStructure.Select(v => v.Count(t => t.Item2)).ToArray();
+            ICoordinate CurrOptLoci = null;
+            double CurrOptPval = 1.1;
+            int CurrOptThresh = -1;
+            int smallBinOptThresh = -1;
+            int iterfound = -1;
+            var allPvalues = new ConcurrentBag<Tuple<double, int, int, ICoordinate,long>>();
+            for (chrId=0; chrId< GenomeStructure.Count; chrId++)
+            {
+                if (largeBlist[chrId] < 2) continue;
+                mHGJumper.Initialize(largeBlist[chrId], GenomeStructure[chrId]- largeBlist[chrId]);
+                var id = chrId;
+                Parallel.For(0, GenomeStructure[chrId], pivotId =>
+                {
+                    var binvec = ChrStructure[id].Select((v, pid) => new { PivotDist = Math.Abs(pid - pivotId), Data = v })
+                        .OrderBy(v => v.PivotDist).ThenByDescending(v => v.Data.Item2).Select(v => v.Data.Item2).ToArray();
+                    var res = mHGJumper.minimumHypergeometric(binvec);
+                    var smallB = binvec.Take(res.Item2).Count(v => v);
+                    allPvalues.Add(Tuple.Create(res.Item1, res.Item2, smallB, ChrStructure[id][pivotId].Item1, (long)pivotId));
+                    lock (locker)
+                    {
+                        if (!(res.Item1 < CurrOptPval) &&
+                            (!(Math.Abs(res.Item1 - CurrOptPval) < StaticConfigParams.TOLERANCE) ||
+                             smallB / res.Item2 <= smallBinOptThresh / CurrOptThresh)) return;
+                        CurrOptLoci = nrm != null ? nrm.DeNormalize(ChrStructure[id][pivotId].Item1) : ChrStructure[id][pivotId].Item1;
+                        CurrOptPval = res.Item1;
+                        CurrOptThresh = res.Item2;
+                        smallBinOptThresh = smallB;
+                        iterfound = GenomeStructure[id] + pivotId;
+                    }
+                });
+            }
+            var g = new Gridding(SamplingType.Pivot);
+            var qvals = g.GetQvalues(allPvalues);
+            if (qvals.Any())
+            {
+                File.WriteAllLines(Path.ChangeExtension(filename, $".OneD.res"), qvals.Select(Convert.ToString));
+                File.AppendAllLines(Path.ChangeExtension(filename, ".res"),
+                    new List<string>() { $"OneD,{CurrOptPval},{qvals.First().Item1},{CurrOptThresh},{smallBinOptThresh},{iterfound},{CurrOptLoci.ToString(@"0.000")}" });
+
+            }
         }
 
         public static void mHGOnOriginalPoints(string[] args, List<ICoordinate> coordinates, List<bool> labels, int numcoords, List<ICoordinate> pivots = null)

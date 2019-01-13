@@ -31,9 +31,13 @@ namespace SpatialEnrichmentWrapper
         private StreamWriter _timerlog;
         private DateTime _startTime;
         private BlockingCollection<string> _logQueue;
-        private ConcurrentBag<Tuple<double, int, int, ICoordinate>> pValueHistory;
+        private ConcurrentBag<Tuple<double, int, int, ICoordinate, long>> pValueHistory;
+        public ConcurrentBag<Tuple<double, long>> ProgressList;
+        public bool TrackProgress = false;
+        private CancellationTokenSource tokenSource = new CancellationTokenSource();
         private Task _logTask;
         private INormalizer nrm;
+        private ConcurrentPriorityQueue<int, SpaceCube> candidateCubes;
         public Gridding(SamplingType type, INormalizer norm = null)
         {
             _type = type;
@@ -82,11 +86,13 @@ namespace SpatialEnrichmentWrapper
 			});
 		}
 
-        public List<Tuple<double,int, int,ICoordinate>> GetQvalues(double qthreshold = 0.05)
+        public List<Tuple<double,int, int,ICoordinate>> GetQvalues(ConcurrentBag<Tuple<double, int, int, ICoordinate, long>> fromData = null, double qthreshold = 0.05)
         {
-            var qvals = pValueHistory.Select(v=>v.Item1).ToList().FDRCorrection();
-            var res = qvals.Zip(pValueHistory, (a, b) => Tuple.Create(a, b.Item2, b.Item3, b.Item4))
-                .OrderBy(v => v.Item1).ThenByDescending(v=>v.Item3/v.Item2).TakeWhile((v,idx) => (v.Item1 < qthreshold || idx < 10) && idx < 100).ToList();
+            var pVals = fromData ?? pValueHistory;
+            var qvals = pVals.Select(v=>v.Item1).ToList().FDRCorrection();
+            var res = qvals.Zip(pVals, (a, b) => Tuple.Create(a, b.Item2, b.Item3, b.Item4))
+                .OrderBy(v => v.Item1).ThenByDescending(v=>v.Item3/v.Item2)
+                .TakeWhile((v,idx) => (v.Item1 < qthreshold || idx < 10) && idx < 100).ToList();
             return res;
         }
 
@@ -127,31 +133,66 @@ namespace SpatialEnrichmentWrapper
 
         public void GenerateRecrusivePivotGrid(List<Tuple<ICoordinate,bool>> data, double buffer = 0.1)
         {
+            
             var ranges = new MinMaxNormalizer(data.Select(v => v.Item1).ToList());
-
+            candidateCubes = new ConcurrentPriorityQueue<int, SpaceCube>();
             producer = Task.Run(() =>
             {
-                var stack = new ConcurrentPriorityQueue<int, SpaceCube>();
-                stack.Enqueue(0,
+                var planes = data.DifferentCombinations(2).AsParallel().Select(v => v.ToList())
+                    .Where(p => p[0].Item2 != p[1].Item2).Select(pair =>
+                        Plane.Bisector((Coordinate3D) pair[0].Item1, (Coordinate3D) pair[1].Item1)).ToList();
+
+                candidateCubes.Enqueue(0,
                     new SpaceCube(ranges.botranges[0] - buffer * ranges.denom[0],
                                   ranges.topranges[0] + buffer * ranges.denom[0],
                                   ranges.botranges[1] - buffer * ranges.denom[1],
                                   ranges.topranges[1] + buffer * ranges.denom[1],
                                   ranges.botranges[2] - buffer * ranges.denom[2],
                                   ranges.topranges[2] + buffer * ranges.denom[2])
+                        { Planes = planes }
                     );
-
-                while (stack.TryDequeue(out var curr))
+                var QueueConsumers = new List<Task>();
+                while (candidateCubes.TryDequeue(out var curr))
                 {
-                    Pivots.Add(curr.Value.GetMidpoint);
-                    if (curr.Value.AllCornersInSameCell(data)) continue;
-                    foreach (var sub in curr.Value.GetSubCubes())
+                    Pivots.Add(curr.Value);
+
+                    if (curr.Value.AllCornersInSameCell(data))
+                        continue;
+
+                    if (QueueConsumers.Count > 20)
                     {
-                        stack.Enqueue(curr.Key+1, sub);
+                        var tid = Task.WaitAny(QueueConsumers.ToArray());
+                        QueueConsumers.RemoveAt(tid);
                     }
+
+                    var currLocal = curr;
+                    QueueConsumers.Add(Task.Run(() =>
+                    {
+                        try
+                        {
+                            var estcount = currLocal.Value.EstimateCellCount();
+                            currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
+                            if (currLocal.Value.MinCellsToOpt != null &&
+                                currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
+                                return;
+                            foreach (var sub in currLocal.Value.GetSubCubes())
+                            {
+                                candidateCubes.Enqueue(currLocal.Key + 1, sub);
+                            }
+                        }
+                        catch
+                        {
+                            Console.WriteLine("bah");
+                        }
+                    }));
+                    while(candidateCubes.IsEmpty && QueueConsumers.Count > 0 && QueueConsumers.Any(t=>t.Status == TaskStatus.Running))
+                        Thread.Sleep(200);
+                    if (tokenSource.Token.IsCancellationRequested)
+                        return;
+
                 }
                 Pivots.CompleteAdding();
-            });
+            }, tokenSource.Token);
         }
 
 
@@ -170,7 +211,8 @@ namespace SpatialEnrichmentWrapper
             object locker = new object();
             mHGJumper.optHGT = 1;
             StreamWriter outfile = null;
-            if (trackAll) pValueHistory = new ConcurrentBag<Tuple<double,int, int,ICoordinate>>();
+            if (trackAll) pValueHistory = new ConcurrentBag<Tuple<double,int, int,ICoordinate, long>>();
+            if (TrackProgress) ProgressList = new ConcurrentBag<Tuple<double, long>>();
             if (debug != null)
                 outfile = new StreamWriter(debug);
             var celltracker = new ConcurrentDictionary<BitArray,bool>();
@@ -190,9 +232,11 @@ namespace SpatialEnrichmentWrapper
                             }
                         }
                         res = mHGJumper.minimumHypergeometric(binvec);
+                        if (_type == SamplingType.RecursiveGrid)
+                            ((SpaceCube) pivot).MinCellsToOpt = res.Item3;
                         var smallB = binvec.Take(res.Item2).Count(v => v);
-                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, smallB, pivot));
-                        Interlocked.Increment(ref EvaluatedPivots);
+                        var iter = Interlocked.Increment(ref EvaluatedPivots);
+                        if (trackAll) pValueHistory.Add(Tuple.Create(res.Item1, res.Item2, smallB, pivot, iter));
                         lock (locker)
                         {
                             if (res.Item1 < CurrOptPval ||
@@ -203,7 +247,8 @@ namespace SpatialEnrichmentWrapper
                                 CurrOptPval = res.Item1;
                                 CurrOptThresh = res.Item2;
                                 smallBinOptThresh = smallB;
-                                iterfound = EvaluatedPivots;
+                                iterfound = iter;
+                                if (TrackProgress) ProgressList.Add(Tuple.Create(CurrOptPval, iterfound));
                             }
                         }
                         if (debug != null)
@@ -219,8 +264,10 @@ namespace SpatialEnrichmentWrapper
                 }));
             
             Task.WaitAll(tsks.ToArray());
+            tokenSource.Cancel();
             if (debug != null) outfile.Close();
             celltracker.Clear();
+            if (TrackProgress) ProgressList.Add(Tuple.Create(CurrOptPval, EvaluatedPivots));
             return new Tuple<ICoordinate, double, int, int, long>(CurrOptLoci, CurrOptPval, CurrOptThresh, smallBinOptThresh, iterfound);
         }
 
@@ -266,6 +313,7 @@ namespace SpatialEnrichmentWrapper
                 if (debug != null)
                     File.WriteAllLines(debug, bisectors.Select(b => b.ToString()));
                 //set inorder=true for enumeration without replacement of possible combinations.
+                var problemSize = Special.Binomial(bisectors.Count, problemDim);
                 if (inorder)
                 {
                     //Lazily generate all (upto ~numsamples) permutations of bisectors pairs (2D) or triplets (3D)
@@ -282,7 +330,8 @@ namespace SpatialEnrichmentWrapper
                 }
                 else
                 {
-                    Parallel.For(0, numsamples, new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (i, loopState) =>
+                    //runs 100X # cells for >1 expected coverage.
+                    Parallel.For(0, (long)problemSize*100, new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (i, loopState) =>
                     {
                         var inducerIds = new HashSet<int>();
                         while (inducerIds.Count < problemDim)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,5 +21,8 @@ namespace SpatialEnrichmentWrapper
 
         [Option('u', "SaasUrl", DefaultValue = "", HelpText = @"Azure batch storage Saas url", Required = false)]
         public string SaasUrl { get; set; }
+
+        [Option('s', "GenomeStructure", DefaultValue = "", HelpText = @"semicolon (;) delimited per chromsome bin count", Required = false)]
+        public string GenomeStructure { get; set; }
     }
 }

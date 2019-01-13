@@ -40,7 +40,7 @@ namespace SpatialEnrichment.Helpers
         {
             if (ones == 0 || zeros == 0)
                 throw new ArgumentException("Missing zeros or ones");
-            optHGT = 0.05;
+            optHGT = 1;
             if (Ones == ones && Zeros == zeros && HGTmat != null)
             {
                 return; //this was pre-initialized sometime
@@ -228,7 +228,7 @@ namespace SpatialEnrichment.Helpers
                         mHGT = currHGT;
                     }
                     //check distance to optimum
-                    if (!newOpt && abortIfSubOpt && HGTmat[n - k + 1, Ones] > optHGT)
+                    if (abortIfSubOpt && !newOpt &&  HGTmat[n - k + 1, Ones] > optHGT)
                         return new Tuple<double, int, int[]>(1.0, -1, new int[0]);
                     if (optHGT.HasValue && optHGT <= currHGT)
                     {
