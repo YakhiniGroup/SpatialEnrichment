@@ -20,7 +20,7 @@ namespace UnitTests
         {
             Program.Config = new ConfigParams { ActionList = Actions.Instance_PlantedSingleEnrichment };
             StaticConfigParams.RandomInstanceType = typeof(Coordinate3D);
-            for (var n=10;n<100;n+=20)
+            for (var n=20;n<=100;n+=20)
             for (var i = 0; i < 10; i++)
             {
                 var instance = Program.RandomizeCoordinatesAndSave(n, out var pivotcoord, false);

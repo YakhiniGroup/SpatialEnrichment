@@ -168,24 +168,17 @@ namespace SpatialEnrichmentWrapper
                     var currLocal = curr;
                     QueueConsumers.Add(Task.Run(() =>
                     {
-                        try
+                        var estcount = currLocal.Value.EstimateCellCount();
+                        currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
+                        if (currLocal.Value.MinCellsToOpt != null &&
+                            currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
+                            return;
+                        foreach (var sub in currLocal.Value.GetSubCubes())
                         {
-                            var estcount = currLocal.Value.EstimateCellCount();
-                            currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
-                            if (currLocal.Value.MinCellsToOpt != null &&
-                                currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
-                                return;
-                            foreach (var sub in currLocal.Value.GetSubCubes())
-                            {
-                                candidateCubes.Enqueue(currLocal.Key + 1, sub);
-                            }
-                        }
-                        catch
-                        {
-                            Console.WriteLine("bah");
+                            candidateCubes.Enqueue(currLocal.Key + 1, sub);
                         }
                     }));
-                    while(candidateCubes.IsEmpty && QueueConsumers.Count > 0 && QueueConsumers.All(t=>t.Status != TaskStatus.RanToCompletion))
+                    while(candidateCubes.IsEmpty && QueueConsumers.Count > 0 && QueueConsumers.Any(t=>t.Status != TaskStatus.RanToCompletion))
                         Thread.Sleep(200);
                     if (tokenSource.Token.IsCancellationRequested)
                         return;
@@ -330,8 +323,8 @@ namespace SpatialEnrichmentWrapper
                 }
                 else
                 {
-                    //runs 100X # cells for >1 expected coverage.
-                    Parallel.For(0, (long)problemSize*100, new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (i, loopState) =>
+                    //This is a coupon collector problem. E(x)=nlogn, and Pr[T>b*nlogn]<=n^(1-b)
+                    Parallel.For(0, (long)(2.0*problemSize*Math.Log(problemSize)), new ParallelOptions() { MaxDegreeOfParallelism = parallelism }, (i, loopState) =>
                     {
                         var inducerIds = new HashSet<int>();
                         while (inducerIds.Count < problemDim)
