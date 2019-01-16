@@ -169,10 +169,13 @@ namespace SpatialEnrichmentWrapper
                     QueueConsumers.Add(Task.Run(() =>
                     {
                         var estcount = currLocal.Value.EstimateCellCount();
-                        currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
-                        if (currLocal.Value.MinCellsToOpt != null &&
-                            currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
-                            return;
+                        if (estcount <= mHGJumper.Ones + 1)
+                        {
+                            currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
+                            if (currLocal.Value.MinCellsToOpt != null &&
+                                currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
+                                return;
+                        }
                         foreach (var sub in currLocal.Value.GetSubCubes())
                         {
                             candidateCubes.Enqueue(currLocal.Key + 1, sub);

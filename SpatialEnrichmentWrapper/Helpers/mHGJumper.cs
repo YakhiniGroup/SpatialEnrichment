@@ -136,6 +136,8 @@ namespace SpatialEnrichment.Helpers
             pValThresh = Math.Max(pValThresh, ScoreMap.Min(v => v.Value));
             var outvec = new List<bool>();
             pathCounting(-1, out var pathCountMat);
+            
+            //Collect all viable HGT entries corresponding to equal or lower p-value than desired threshold.
             var pathList = new List<Tuple<int, int, double, double>>();
             for (var i = 0; i < Zeros + 1; i++)
             for (var j = 0; j < Ones + 1; j++)
@@ -146,6 +148,8 @@ namespace SpatialEnrichment.Helpers
             var rnd = new Random();
             var selection = rnd.NextDouble() * pathCountSum;
             double pathCountCumsum = 0.0;
+            
+            //Importance sampling of entry according to #of paths traversing it.
             var item = pathList.OrderByDescending(v => v.Item3).SkipWhile(v => (pathCountCumsum += Math.Log10(v.Item3)) < selection).First();
 
             for (var k = 0; k < item.Item1; k++) //zerosInThresh

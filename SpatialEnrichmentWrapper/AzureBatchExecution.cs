@@ -37,6 +37,7 @@ namespace SpatialEnrichmentWrapper
         public string JobId => $"SmHG-{JobIdx}";
         private string cachefile;
         private int logposLeft, logposTop;
+        public static int uploadedfilecount = 0;
         public AzureBatchExecution(string databasepath)
         {
             InputPath = databasepath;
@@ -308,12 +309,12 @@ namespace SpatialEnrichmentWrapper
                 if (blobData.Properties.LastModified >= newver.LastWriteTime)
                 {
                     exists = true;
-                    Console.WriteLine("Skipping file {0} exists in container [{1}]...", filePath, containerName);
+                    Console.WriteLine("Skipping file #{0}: {1} exists in container [{2}]...", uploadedfilecount++, filePath, containerName);
                 }
             }
             if (!exists)
             {
-                Console.WriteLine("Uploading file {0} to container [{1}]...", filePath, containerName);
+                Console.WriteLine("Uploading file #{0}: {1} to container [{2}]...", uploadedfilecount++, filePath, containerName);
                 await blobData.UploadFromFileAsync(filePath);
             }
 
