@@ -31,7 +31,7 @@ namespace SpatialEnrichmentWrapper
 
         private const string PoolId = "SpatialEnrichmentPool";
         
-        public static TimeSpan ExpectedDuration = TimeSpan.FromHours(24.0);
+        public static TimeSpan ExpectedDuration = TimeSpan.FromDays(10.0);
         public string InputPath;
         private int JobIdx;
         public string JobId => $"SmHG-{JobIdx}";
@@ -73,8 +73,8 @@ namespace SpatialEnrichmentWrapper
             BatchAccountUrl = jsoncache["BatchAccountUrl"];
             StorageAccountName = jsoncache["StorageAccountName"];
             StorageAccountKey = jsoncache["StorageAccountKey"];
-            MaxDedicatedCores = int.Parse(jsoncache["MaxDedicatedCores"]);
-            MaxLowPrioCores = int.Parse(jsoncache["MaxLowPrioCores"]);
+            MaxDedicatedCores = jsoncache.ContainsKey("MaxDedicatedCores") ? int.Parse(jsoncache["MaxDedicatedCores"]) : 1;
+            MaxLowPrioCores = jsoncache.ContainsKey("MaxLowPrioCores") ? int.Parse(jsoncache["MaxLowPrioCores"]) : 1;
         }
 
         /// <summary>

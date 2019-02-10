@@ -53,7 +53,7 @@ namespace mmHG
             if (perm.Min() == 1) //turn 0-based
                 for (var i = 0; i < perm.Length; i++)
                     perm[i] -= 1;
-            MHG.SetMaxN((int)(0.3 * perm.Max()));
+            MHG.SetMaxN(perm.Length+1);
             var res = MMHG.CalcScore(perm);
             return res;
         }

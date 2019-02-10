@@ -200,6 +200,7 @@ namespace SpatialEnrichmentWrapper
         public double D; //plane given as aX+bY+cZ=d where a,b,c is the Normal
         public static int Count;
         public static int[][] PlaneIdsMap;
+        public bool signOfPosLbl;
 
         public Plane(double a, double b, double c, double d, bool isCounted = true)
         {
@@ -209,13 +210,20 @@ namespace SpatialEnrichmentWrapper
                 Id = Count++;
         }
 
+        public static Plane Bisector(Coordinate3D a, Coordinate3D b, bool aval, bool bval)
+        {
+            var resplane = Bisector(a, b);
+            resplane.signOfPosLbl = aval ? resplane.GetSignOfCoord(a) : resplane.GetSignOfCoord(b);
+            return resplane;
+        }
+
         public static Plane Bisector(Coordinate3D a, Coordinate3D b)
         {
             var midPoints = new Coordinate3D((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
             var normalVec = (b - a).Normalize();
             var d = -normalVec.DotProduct(midPoints);
-            return new Plane(normalVec.X, normalVec.Y, normalVec.Z, d)
-                       { MidPoint = midPoints };
+            var resplane = new Plane(normalVec.X, normalVec.Y, normalVec.Z, d) {MidPoint = midPoints};
+            return resplane;
         }
 
         public Coordinate3D ProjectOnto(Coordinate3D coord)

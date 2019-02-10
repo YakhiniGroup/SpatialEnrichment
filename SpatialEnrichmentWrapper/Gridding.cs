@@ -140,7 +140,8 @@ namespace SpatialEnrichmentWrapper
             {
                 var planes = data.DifferentCombinations(2).AsParallel().Select(v => v.ToList())
                     .Where(p => p[0].Item2 != p[1].Item2).Select(pair =>
-                        Plane.Bisector((Coordinate3D) pair[0].Item1, (Coordinate3D) pair[1].Item1)).ToList();
+                        Plane.Bisector((Coordinate3D) pair[0].Item1, (Coordinate3D) pair[1].Item1, pair[0].Item2,
+                            pair[1].Item2)).ToList();
 
                 candidateCubes.Enqueue(0,
                     new SpaceCube(ranges.botranges[0] - buffer * ranges.denom[0],
@@ -168,13 +169,14 @@ namespace SpatialEnrichmentWrapper
                     var currLocal = curr;
                     QueueConsumers.Add(Task.Run(() =>
                     {
-                        var estcount = currLocal.Value.EstimateCellCount();
-                        if (estcount <= mHGJumper.Ones + 1)
+                        //var estcount = currLocal.Value.EstimateCellCount();
+                        var negbisectors = currLocal.Value.CountBisectorsOnNegSide();
+                        if (negbisectors <= mHGJumper.Ones + 1) //estcount <= mHGJumper.Ones + 1 || 
                         {
                             currLocal.Value.WaitForSkipsArray(TimeSpan.FromMinutes(1));
-                            if (currLocal.Value.MinCellsToOpt != null &&
-                                currLocal.Value.MinCellsToOpt.Min(v => v) > (estcount - 1))
-                                return;
+                            var mindist = currLocal.Value.MinCellsToOpt?.Min(v => v);
+                            if (mindist > negbisectors) //mindist > estcount - 1 | 
+                                return; // we need to travel more than possible in this cube. abort.
                         }
                         foreach (var sub in currLocal.Value.GetSubCubes())
                         {

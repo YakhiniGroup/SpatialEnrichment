@@ -165,5 +165,16 @@ namespace SpatialEnrichmentWrapper
             return intrscts;
             */
         }
+
+        public int CountBisectorsOnNegSide()
+        {
+            var rescount = 0;
+            foreach (var p in Planes)
+            {
+                rescount += p.GetSignOfCoord(this) != p.signOfPosLbl ? 1 : 0;
+            }
+            return rescount;
+        }
+
     }
 }
